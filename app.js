@@ -4,12 +4,19 @@ import * as docx from 'https://esm.sh/docx@8.5.0';
 // Resolve the API key from localStorage, falling back to window.GEMINI_API_KEY (from config.js)
 let GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || (window.GEMINI_API_KEY || "");
 
-// Ensure Lucide icons are initialized on load
-window.addEventListener('DOMContentLoaded', () => {
+// Initialize the application
+if (document.readyState === "loading") {
+    window.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
+
+function initApp() {
+    console.log("docx import:", docx);
     lucide.createIcons();
     setupEventListeners();
     loadSavedData();
-});
+}
 
 // App State
 let uploadedFiles = [];
@@ -1191,7 +1198,11 @@ async function generateAndDownloadDocx(language) {
         a.click();
         
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        // Delay revoking the object URL to give the browser time to complete the download
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 10000);
 
         addLog(`Successfully generated and downloaded ${language} document.`, 'success');
 
