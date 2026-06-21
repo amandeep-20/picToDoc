@@ -1,10 +1,12 @@
 // Import docx as ES module from esm.sh CDN
 import * as docx from 'https://esm.sh/docx@8.5.0';
 
+// Hardcoded Gemini API Key
+const GEMINI_API_KEY = "AQ.Ab8RN6IlwXFA3SOSisYEB2heXmczjl1Rmu8p11icgF78GaHWvQ";
+
 // Ensure Lucide icons are initialized on load
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
-    loadSavedApiKey();
     setupEventListeners();
 });
 
@@ -13,9 +15,6 @@ let uploadedFiles = [];
 let generatedData = null;
 
 // DOM Elements
-const apiKeyInput = document.getElementById('apiKey');
-const toggleApiKeyBtn = document.getElementById('toggleApiKey');
-const saveKeyCheckbox = document.getElementById('saveKey');
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
 const uploadedFilesContainer = document.getElementById('uploadedFilesContainer');
@@ -36,18 +35,6 @@ const previewContent = document.getElementById('previewContent');
 
 // 1. Setup & Event Listeners
 function setupEventListeners() {
-    // API key show/hide
-    toggleApiKeyBtn.addEventListener('click', () => {
-        const type = apiKeyInput.type === 'password' ? 'text' : 'password';
-        apiKeyInput.type = type;
-        const iconName = type === 'password' ? 'eye' : 'eye-off';
-        toggleApiKeyBtn.innerHTML = `<i data-lucide="${iconName}"></i>`;
-        lucide.createIcons({ attrs: { class: 'lucide' } });
-    });
-
-    // Check generate button state on key input or file selection
-    apiKeyInput.addEventListener('input', checkButtonState);
-
     // Dropzone events
     dropzone.addEventListener('click', () => fileInput.click());
     
@@ -100,21 +87,9 @@ function setupEventListeners() {
 
 // Check if we can enable Generate button
 function checkButtonState() {
-    const hasKey = apiKeyInput.value.trim().length > 0;
+    const hasKey = GEMINI_API_KEY.trim().length > 0;
     const hasFiles = uploadedFiles.length > 0;
     generateBtn.disabled = !(hasKey && hasFiles);
-}
-
-// Load API key from local storage
-function loadSavedApiKey() {
-    const savedKey = localStorage.getItem('gemini_api_key');
-    if (savedKey) {
-        apiKeyInput.value = savedKey;
-        saveKeyCheckbox.checked = true;
-    } else {
-        apiKeyInput.value = "";
-        saveKeyCheckbox.checked = false;
-    }
 }
 
 // 2. Handle Uploaded Files
@@ -273,16 +248,10 @@ function extractTextFromDocx(file) {
 
 // 4. Gemini API Call
 async function startGenerationFlow() {
-    const apiKey = apiKeyInput.value.trim();
+    const apiKey = GEMINI_API_KEY.trim();
     if (!apiKey) {
-        alert("Please enter a valid Gemini API key!");
+        alert("Gemini API key is not configured in the code!");
         return;
-    }
-
-    if (saveKeyCheckbox.checked) {
-        localStorage.setItem('gemini_api_key', apiKey);
-    } else {
-        localStorage.removeItem('gemini_api_key');
     }
 
     // Update UI elements
