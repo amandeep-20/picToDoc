@@ -12,7 +12,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- mammoth.js library for extracting text from .docx -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-    <!-- Stylesheet -->
+    <!-- Configuration and Stylesheet -->
+    <script src="config.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -22,7 +23,10 @@
     </div>
 
     <div class="app-container">
-        <header class="app-header">
+        <header class="app-header" style="position: relative;">
+            <button type="button" id="settingsBtn" class="btn-settings-gear" title="API Settings">
+                <i data-lucide="settings"></i>
+            </button>
             <div class="logo-container">
                 <i data-lucide="sparkles" class="logo-icon"></i>
                 <h1>Gemini Paper Generator</h1>
@@ -185,6 +189,32 @@ Provide 100% exact parity (translations) between the English and Hindi sets. Ret
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- Settings Modal Overlay -->
+    <div class="modal-overlay" id="settingsModal" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <i data-lucide="settings"></i>
+                <h2>Gemini API Configuration</h2>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">Configure your Gemini API key below. The key is saved locally in your browser's local storage and is never exposed in files or commits.</p>
+                <div class="input-group">
+                    <label for="modalApiKey">Gemini API Key</label>
+                    <div class="password-wrapper">
+                         <input type="password" id="modalApiKey" placeholder="Enter your Gemini API key" autocomplete="off">
+                         <button type="button" id="toggleModalApiKey" class="btn-icon" title="Toggle visibility">
+                             <i data-lucide="eye"></i>
+                         </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-drawer-sub btn-drawer-cancel" id="closeSettingsBtn">Close</button>
+                <button type="button" class="btn-drawer-sub btn-drawer-save" id="saveSettingsBtn">Save Key</button>
+            </div>
+        </div>
     </div>
 
     <!-- Script File -->

@@ -1,8 +1,8 @@
 // Import docx as ES module from esm.sh CDN
 import * as docx from 'https://esm.sh/docx@8.5.0';
 
-// Hardcoded Gemini API Key
-const GEMINI_API_KEY = "AQ.Ab8RN6IlwXFA3SOSisYEB2heXmczjl1Rmu8p11icgF78GaHWvQ";
+// Resolve the API key from localStorage, falling back to window.GEMINI_API_KEY (from config.js)
+let GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || (window.GEMINI_API_KEY || "");
 
 // Ensure Lucide icons are initialized on load
 window.addEventListener('DOMContentLoaded', () => {
@@ -31,6 +31,14 @@ const resultsCard = document.getElementById('resultsCard');
 const emptyState = document.getElementById('emptyState');
 const downloadEnBtn = document.getElementById('downloadEnBtn');
 const downloadHiBtn = document.getElementById('downloadHiBtn');
+
+// Settings Modal DOM Elements
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const modalApiKey = document.getElementById('modalApiKey');
+const toggleModalApiKey = document.getElementById('toggleModalApiKey');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 
 // 1. Setup & Event Listeners
 function setupEventListeners() {
@@ -93,6 +101,46 @@ function setupEventListeners() {
                 updateFilesUI();
                 checkButtonState();
             }
+        });
+    }
+
+    // Settings Modal handlers
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            modalApiKey.value = GEMINI_API_KEY;
+            settingsModal.style.display = 'flex';
+        });
+    }
+
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+    }
+
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => {
+            const keyVal = modalApiKey.value.trim();
+            if (!keyVal) {
+                if (!confirm("Are you sure you want to clear your API key? The app will not work without one.")) {
+                    return;
+                }
+            }
+            GEMINI_API_KEY = keyVal;
+            localStorage.setItem('gemini_api_key', keyVal);
+            settingsModal.style.display = 'none';
+            checkButtonState();
+            addLog("Gemini API key updated and saved locally.", "success");
+        });
+    }
+
+    if (toggleModalApiKey) {
+        toggleModalApiKey.addEventListener('click', () => {
+            const type = modalApiKey.type === 'password' ? 'text' : 'password';
+            modalApiKey.type = type;
+            const iconName = type === 'password' ? 'eye' : 'eye-off';
+            toggleModalApiKey.innerHTML = `<i data-lucide="${iconName}"></i>`;
+            lucide.createIcons({ attrs: { class: 'lucide' } });
         });
     }
 }
@@ -262,7 +310,8 @@ function extractTextFromDocx(file) {
 async function startGenerationFlow() {
     const apiKey = GEMINI_API_KEY.trim();
     if (!apiKey) {
-        alert("Gemini API key is not configured in the code!");
+        alert("Gemini API key is not configured! Please click the settings gear icon to configure it.");
+        settingsModal.style.display = 'flex';
         return;
     }
 
@@ -714,7 +763,8 @@ function createInteractiveQuestionCard(item, index, type, language) {
 async function handleAIRegeneration(index, type, language, promptVal) {
     const apiKey = GEMINI_API_KEY.trim();
     if (!apiKey) {
-        alert("Gemini API key is not configured!");
+        alert("Gemini API key is not configured! Please click the settings gear icon to configure it.");
+        settingsModal.style.display = 'flex';
         return;
     }
 
