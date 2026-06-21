@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Bilingual Paper Generator</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- mammoth.js library for extracting text from .docx -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-decorations">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo-container">
+                <i data-lucide="sparkles" class="logo-icon"></i>
+                <h1>Gemini Paper Generator</h1>
+            </div>
+            <p class="subtitle">Convert study images into bilingual MCQ & Short Answer Word documents instantly.</p>
+        </header>
+
+        <main class="app-grid">
+            <!-- Left Panel: Controls & Uploads -->
+            <section class="panel panel-controls">
+                <!-- API Key Card -->
+                <div class="card card-api">
+                    <div class="card-header">
+                        <i data-lucide="key-round"></i>
+                        <h2>Gemini API Credentials</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label for="apiKey">Gemini API Key</label>
+                            <div class="password-wrapper">
+                                <input type="password" id="apiKey" placeholder="Enter your gemini-api-key" autocomplete="off">
+                                <button type="button" id="toggleApiKey" class="btn-icon" title="Toggle visibility">
+                                    <i data-lucide="eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="saveKey" checked>
+                            <label for="saveKey">Remember API Key (stored locally)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Uploader Card -->
+                <div class="card card-upload">
+                    <div class="card-header">
+                        <i data-lucide="file-text"></i>
+                        <h2>Source Materials (Images / PDFs / Word)</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="dropzone" id="dropzone">
+                            <input type="file" id="fileInput" multiple accept="image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display: none;">
+                            <i data-lucide="upload-cloud" class="upload-icon"></i>
+                            <p class="dropzone-text">Drag & drop your files here or <span class="highlight">browse</span></p>
+                            <p class="dropzone-subtext">Upload study pages, images (JPG/PNG), PDFs, or Word docs (.docx) (Max 10MB per file)</p>
+                        </div>
+                        
+                        <div class="uploaded-files-container" id="uploadedFilesContainer" style="display: none;">
+                            <h3>Selected Files (<span id="fileCount">0</span>)</h3>
+                            <div class="thumbnails-grid" id="thumbnailsGrid"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parameters Settings Card -->
+                <div class="card card-settings">
+                    <div class="card-header">
+                        <i data-lucide="sliders"></i>
+                        <h2>Configuration</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label for="modelSelect">Gemini Model</label>
+                            <select id="modelSelect">
+                                <option value="gemini-2.5-flash" selected>gemini-2.5-flash (Fast & Accurate)</option>
+                                <option value="gemini-2.5-pro">gemini-2.5-pro (High intelligence)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="customPrompt">Instructions Prompt</label>
+                            <textarea id="customPrompt" rows="6">Generate exactly 10 Multiple Choice Questions (MCQs) and 10 Short Answer Questions based on the uploaded images.
+
+For Short Answer Questions:
+- Each QUESTION must be 1-2 sentences long, clearly describing the concept being asked.
+- Each ANSWER must also be 1-2 sentences long, fully explaining the concept so it is clearly understood.
+
+Provide 100% exact parity (translations) between the English and Hindi sets. Return the result in the specified JSON structure.</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Action Button -->
+                <button type="button" id="generateBtn" class="btn-primary" disabled>
+                    <i data-lucide="play"></i>
+                    <span>Generate Bilingual Documents</span>
+                </button>
+            </section>
+
+            <!-- Right Panel: Processing Logs & Downloads -->
+            <section class="panel panel-results">
+                <!-- Status/Logs Card -->
+                <div class="card card-status" id="statusCard" style="display: none;">
+                    <div class="card-header">
+                        <i data-lucide="loader" class="spinner"></i>
+                        <h2>Processing Stream</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="progressBarFill" style="width: 0%"></div>
+                        </div>
+                        <div class="logs-console" id="logsConsole">
+                            <div class="log-line info">Ready to process. Waiting for images and API Key...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Downloads Card -->
+                <div class="card card-downloads" id="downloadsCard" style="display: none;">
+                    <div class="card-header">
+                        <i data-lucide="file-check" class="text-success"></i>
+                        <h2>Generated Documents</h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="success-message">Documents generated successfully! Click below to download the Microsoft Word files.</p>
+                        
+                        <div class="download-grid">
+                            <div class="download-item en-download">
+                                <div class="doc-icon"><i data-lucide="file-text"></i></div>
+                                <div class="doc-info">
+                                    <h3>English Set</h3>
+                                    <p>10 MCQs & 10 Short Questions</p>
+                                    <span class="page-count">2 Pages</span>
+                                </div>
+                                <button class="btn-download" id="downloadEnBtn">
+                                    <i data-lucide="download"></i> Download English
+                                </button>
+                            </div>
+
+                            <div class="download-item hi-download">
+                                <div class="doc-icon"><i data-lucide="file-text"></i></div>
+                                <div class="doc-info">
+                                    <h3>Hindi Set</h3>
+                                    <p>10 MCQs & 10 Short Questions</p>
+                                    <span class="page-count">2 Pages</span>
+                                </div>
+                                <button class="btn-download" id="downloadHiBtn">
+                                    <i data-lucide="download"></i> Download Hindi
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Accordion for preview -->
+                        <div class="preview-accordion">
+                            <button class="accordion-trigger" id="previewTrigger">
+                                <span>Preview Generated Questions</span>
+                                <i data-lucide="chevron-down"></i>
+                            </button>
+                            <div class="accordion-content" id="previewContent">
+                                <div class="tabs-header">
+                                    <button class="tab-btn active" data-tab="tab-en">English</button>
+                                    <button class="tab-btn" data-tab="tab-hi">Hindi</button>
+                                </div>
+                                <div class="tabs-body">
+                                    <div class="tab-panel active" id="tab-en">
+                                        <h4>Multiple Choice Questions (Page 1)</h4>
+                                        <div id="previewEnMcqs" class="preview-list"></div>
+                                        <h4 class="mt-4">Short Answer Questions (Page 2)</h4>
+                                        <div id="previewEnShorts" class="preview-list"></div>
+                                    </div>
+                                    <div class="tab-panel" id="tab-hi">
+                                        <h4>बहुविकल्पीय प्रश्न (पेज 1)</h4>
+                                        <div id="previewHiMcqs" class="preview-list"></div>
+                                        <h4 class="mt-4">लघु उत्तरीय प्रश्न (पेज 2)</h4>
+                                        <div id="previewHiShorts" class="preview-list"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State Placeholders -->
+                <div class="empty-state" id="emptyState">
+                    <i data-lucide="file-question" class="empty-icon"></i>
+                    <h3>No Documents Generated Yet</h3>
+                    <p>Enter your Gemini API key, upload 3-4 images, and click "Generate Bilingual Documents" to start the process.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Script File -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
