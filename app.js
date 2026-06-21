@@ -8,6 +8,7 @@ const GEMINI_API_KEY = "AQ.Ab8RN6IlwXFA3SOSisYEB2heXmczjl1Rmu8p11icgF78GaHWvQ";
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     setupEventListeners();
+    loadSavedData();
 });
 
 // App State
@@ -26,12 +27,10 @@ const generateBtn = document.getElementById('generateBtn');
 const statusCard = document.getElementById('statusCard');
 const progressBarFill = document.getElementById('progressBarFill');
 const logsConsole = document.getElementById('logsConsole');
-const downloadsCard = document.getElementById('downloadsCard');
+const resultsCard = document.getElementById('resultsCard');
 const emptyState = document.getElementById('emptyState');
 const downloadEnBtn = document.getElementById('downloadEnBtn');
 const downloadHiBtn = document.getElementById('downloadHiBtn');
-const previewTrigger = document.getElementById('previewTrigger');
-const previewContent = document.getElementById('previewContent');
 
 // 1. Setup & Event Listeners
 function setupEventListeners() {
@@ -60,12 +59,6 @@ function setupEventListeners() {
     // Generation Action
     generateBtn.addEventListener('click', startGenerationFlow);
 
-    // Preview accordion
-    previewTrigger.addEventListener('click', () => {
-        previewTrigger.classList.toggle('active');
-        const isVisible = previewContent.style.display === 'block';
-        previewContent.style.display = isVisible ? 'none' : 'block';
-    });
 
     // Tab buttons
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -83,6 +76,25 @@ function setupEventListeners() {
     // Downloads
     downloadEnBtn.addEventListener('click', () => generateAndDownloadDocx('english'));
     downloadHiBtn.addEventListener('click', () => generateAndDownloadDocx('hindi'));
+
+    // Reset Button (Start Over)
+    const resetBtn = document.getElementById('resetBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (confirm("Are you sure you want to start over? All current generated questions will be deleted.")) {
+                generatedData = null;
+                localStorage.removeItem('generated_paper_data');
+                resultsCard.style.display = 'none';
+                emptyState.style.display = 'flex';
+                clearLogs();
+                // Reset file lists
+                uploadedFiles = [];
+                thumbnailsGrid.innerHTML = '';
+                updateFilesUI();
+                checkButtonState();
+            }
+        });
+    }
 }
 
 // Check if we can enable Generate button
@@ -257,7 +269,7 @@ async function startGenerationFlow() {
     // Update UI elements
     statusCard.style.display = 'block';
     emptyState.style.display = 'none';
-    downloadsCard.style.display = 'none';
+    resultsCard.style.display = 'none';
     generateBtn.disabled = true;
     setProgress(10);
     clearLogs();
@@ -326,8 +338,10 @@ async function startGenerationFlow() {
         addLog('Question generation completed!', 'success');
         addLog('DOCX files ready for download.', 'success');
         
-        // Show download card
-        downloadsCard.style.display = 'block';
+        saveDataToLocalStorage();
+
+        // Show results card
+        resultsCard.style.display = 'block';
         statusCard.querySelector('.spinner').classList.remove('spinner');
         statusCard.querySelector('.card-header i').innerHTML = '<i data-lucide="check-circle" class="text-success"></i>';
         lucide.createIcons();
@@ -490,18 +504,7 @@ function renderPreview() {
     const enMcqContainer = document.getElementById('previewEnMcqs');
     enMcqContainer.innerHTML = '';
     english.mcqs.forEach((item, index) => {
-        const card = document.createElement('div');
-        card.className = 'preview-q-card';
-        card.innerHTML = `
-            <div class="q-title">${index + 1}. ${item.question}</div>
-            <ul class="q-options">
-                ${item.options.map(opt => `<li class="q-option">${opt}</li>`).join('')}
-            </ul>
-            <div class="q-answer">
-                <i data-lucide="check" class="text-success" style="width:14px;height:14px;"></i>
-                <span>Correct: ${item.correctAnswer}</span>
-            </div>
-        `;
+        const card = createInteractiveQuestionCard(item, index, 'mcqs', 'english');
         enMcqContainer.appendChild(card);
     });
 
@@ -509,12 +512,7 @@ function renderPreview() {
     const enShortContainer = document.getElementById('previewEnShorts');
     enShortContainer.innerHTML = '';
     english.shortAnswers.forEach((item, index) => {
-        const card = document.createElement('div');
-        card.className = 'preview-q-card';
-        card.innerHTML = `
-            <div class="q-title">${index + 1}. ${item.question}</div>
-            <div class="q-answer-short"><strong>Ans:</strong> ${item.answer}</div>
-        `;
+        const card = createInteractiveQuestionCard(item, index, 'shortAnswers', 'english');
         enShortContainer.appendChild(card);
     });
 
@@ -522,18 +520,7 @@ function renderPreview() {
     const hiMcqContainer = document.getElementById('previewHiMcqs');
     hiMcqContainer.innerHTML = '';
     hindi.mcqs.forEach((item, index) => {
-        const card = document.createElement('div');
-        card.className = 'preview-q-card';
-        card.innerHTML = `
-            <div class="q-title">${index + 1}. ${item.question}</div>
-            <ul class="q-options">
-                ${item.options.map(opt => `<li class="q-option">${opt}</li>`).join('')}
-            </ul>
-            <div class="q-answer">
-                <i data-lucide="check" class="text-success" style="width:14px;height:14px;"></i>
-                <span>सही उत्तर: ${item.correctAnswer}</span>
-            </div>
-        `;
+        const card = createInteractiveQuestionCard(item, index, 'mcqs', 'hindi');
         hiMcqContainer.appendChild(card);
     });
 
@@ -541,16 +528,397 @@ function renderPreview() {
     const hiShortContainer = document.getElementById('previewHiShorts');
     hiShortContainer.innerHTML = '';
     hindi.shortAnswers.forEach((item, index) => {
-        const card = document.createElement('div');
-        card.className = 'preview-q-card';
-        card.innerHTML = `
-            <div class="q-title">${index + 1}. ${item.question}</div>
-            <div class="q-answer-short"><strong>उत्तर:</strong> ${item.answer}</div>
-        `;
+        const card = createInteractiveQuestionCard(item, index, 'shortAnswers', 'hindi');
         hiShortContainer.appendChild(card);
     });
 
     lucide.createIcons();
+}
+
+function createInteractiveQuestionCard(item, index, type, language) {
+    const card = document.createElement('div');
+    card.className = 'preview-q-card';
+    card.setAttribute('data-index', index);
+    card.setAttribute('data-type', type);
+    card.setAttribute('data-lang', language);
+
+    const isMcq = type === 'mcqs';
+    const isEn = language === 'english';
+
+    // 1. Render normal display
+    let displayHtml = '';
+    if (isMcq) {
+        displayHtml = `
+            <div class="q-display">
+                <div class="q-title">${index + 1}. ${item.question}</div>
+                <ul class="q-options">
+                    ${item.options.map(opt => `<li class="q-option">${opt}</li>`).join('')}
+                </ul>
+                <div class="q-answer">
+                    <i data-lucide="check" class="text-success" style="width:14px;height:14px;"></i>
+                    <span>${isEn ? 'Correct Answer' : 'सही उत्तर'}: ${item.correctAnswer}</span>
+                </div>
+            </div>
+        `;
+    } else {
+        displayHtml = `
+            <div class="q-display">
+                <div class="q-title">${index + 1}. ${item.question}</div>
+                <div class="q-answer-short"><strong>${isEn ? 'Ans' : 'उत्तर'}:</strong> ${item.answer}</div>
+            </div>
+        `;
+    }
+
+    // 2. Render actions toolbar
+    const toolbarHtml = `
+        <div class="q-actions-toolbar">
+            <button type="button" class="btn-action btn-action-refine">
+                <i data-lucide="sparkles"></i> <span>${isEn ? 'Refine with AI' : 'एआई परिष्करण'}</span>
+            </button>
+            <button type="button" class="btn-action btn-action-edit">
+                <i data-lucide="pencil"></i> <span>${isEn ? 'Edit Manually' : 'मैन्युअल एडिट'}</span>
+            </button>
+        </div>
+    `;
+
+    // 3. Render AI refine drawer
+    const refineDrawerHtml = `
+        <div class="edit-drawer drawer-refine" style="display: none;">
+            <label>${isEn ? 'How should AI refine this question?' : 'एआई को इस प्रश्न को कैसे परिष्कृत करना चाहिए?'}</label>
+            <textarea class="refine-prompt-input" rows="2" placeholder="${isEn ? 'e.g., make it harder, change options, ask about photosynthesis...' : 'उदा., इसे और कठिन बनाएं, विकल्प बदलें, प्रकाश संश्लेषण के बारे में पूछें...' }"></textarea>
+            <div class="drawer-actions">
+                <button type="button" class="btn-drawer-sub btn-drawer-cancel">${isEn ? 'Cancel' : 'रद्द करें'}</button>
+                <button type="button" class="btn-drawer-sub btn-drawer-sub-refine btn-drawer-apply">${isEn ? 'Regenerate' : 'पुनः उत्पन्न करें'}</button>
+            </div>
+        </div>
+    `;
+
+    // 4. Render manual edit drawer
+    let editDrawerHtml = '';
+    if (isMcq) {
+        editDrawerHtml = `
+            <div class="edit-drawer drawer-edit" style="display: none;">
+                <div class="input-group">
+                    <label>${isEn ? 'Question Text' : 'प्रश्न पाठ'}</label>
+                    <input type="text" class="edit-q-input" value="${(item.question || '').replace(/"/g, '&quot;')}">
+                </div>
+                <div class="input-group">
+                    <label>${isEn ? 'Options' : 'विकल्प'}</label>
+                    <div class="edit-options-grid">
+                        <input type="text" class="edit-opt-0" value="${(item.options[0] || '').replace(/"/g, '&quot;')}">
+                        <input type="text" class="edit-opt-1" value="${(item.options[1] || '').replace(/"/g, '&quot;')}">
+                        <input type="text" class="edit-opt-2" value="${(item.options[2] || '').replace(/"/g, '&quot;')}">
+                        <input type="text" class="edit-opt-3" value="${(item.options[3] || '').replace(/"/g, '&quot;')}">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>${isEn ? 'Correct Answer' : 'सही उत्तर'}</label>
+                    <select class="edit-ans-select">
+                        <option value="0" ${item.correctAnswer === item.options[0] ? 'selected' : ''}>A</option>
+                        <option value="1" ${item.correctAnswer === item.options[1] ? 'selected' : ''}>B</option>
+                        <option value="2" ${item.correctAnswer === item.options[2] ? 'selected' : ''}>C</option>
+                        <option value="3" ${item.correctAnswer === item.options[3] ? 'selected' : ''}>D</option>
+                    </select>
+                </div>
+                <div class="drawer-actions">
+                    <button type="button" class="btn-drawer-sub btn-drawer-cancel">${isEn ? 'Cancel' : 'रद्द करें'}</button>
+                    <button type="button" class="btn-drawer-sub btn-drawer-sub-save btn-drawer-save">${isEn ? 'Save' : 'सहेजें'}</button>
+                </div>
+            </div>
+        `;
+    } else {
+        editDrawerHtml = `
+            <div class="edit-drawer drawer-edit" style="display: none;">
+                <div class="input-group">
+                    <label>${isEn ? 'Question Text' : 'प्रश्न पाठ'}</label>
+                    <input type="text" class="edit-q-input" value="${(item.question || '').replace(/"/g, '&quot;')}">
+                </div>
+                <div class="input-group">
+                    <label>${isEn ? 'Answer Text' : 'उत्तर पाठ'}</label>
+                    <textarea class="edit-a-input" rows="2">${item.answer || ''}</textarea>
+                </div>
+                <div class="drawer-actions">
+                    <button type="button" class="btn-drawer-sub btn-drawer-cancel">${isEn ? 'Cancel' : 'रद्द करें'}</button>
+                    <button type="button" class="btn-drawer-sub btn-drawer-sub-save btn-drawer-save">${isEn ? 'Save' : 'सहेजें'}</button>
+                </div>
+            </div>
+        `;
+    }
+
+    card.innerHTML = displayHtml + toolbarHtml + refineDrawerHtml + editDrawerHtml;
+
+    // 5. Setup Action Listeners
+    const refineDrawer = card.querySelector('.drawer-refine');
+    const editDrawer = card.querySelector('.drawer-edit');
+
+    card.querySelector('.btn-action-refine').addEventListener('click', () => {
+        const isShown = refineDrawer.style.display === 'flex';
+        refineDrawer.style.display = isShown ? 'none' : 'flex';
+        editDrawer.style.display = 'none';
+    });
+
+    card.querySelector('.btn-action-edit').addEventListener('click', () => {
+        const isShown = editDrawer.style.display === 'flex';
+        editDrawer.style.display = isShown ? 'none' : 'flex';
+        refineDrawer.style.display = 'none';
+    });
+
+    // AI Refine Drawer Actions
+    refineDrawer.querySelector('.btn-drawer-cancel').addEventListener('click', () => {
+        refineDrawer.style.display = 'none';
+        refineDrawer.querySelector('.refine-prompt-input').value = '';
+    });
+
+    refineDrawer.querySelector('.btn-drawer-sub-refine').addEventListener('click', () => {
+        const promptVal = refineDrawer.querySelector('.refine-prompt-input').value.trim();
+        if (!promptVal) {
+            alert(isEn ? "Please enter a refinement prompt!" : "कृपया परिष्करण प्रॉम्प्ट दर्ज करें!");
+            return;
+        }
+        handleAIRegeneration(index, type, language, promptVal);
+    });
+
+    // Manual Edit Drawer Actions
+    editDrawer.querySelector('.btn-drawer-cancel').addEventListener('click', () => {
+        editDrawer.style.display = 'none';
+    });
+
+    editDrawer.querySelector('.btn-drawer-sub-save').addEventListener('click', () => {
+        let updatedData = {};
+        if (isMcq) {
+            const correctIdx = parseInt(editDrawer.querySelector('.edit-ans-select').value);
+            const opts = [
+                editDrawer.querySelector('.edit-opt-0').value.trim(),
+                editDrawer.querySelector('.edit-opt-1').value.trim(),
+                editDrawer.querySelector('.edit-opt-2').value.trim(),
+                editDrawer.querySelector('.edit-opt-3').value.trim()
+            ];
+            updatedData = {
+                question: editDrawer.querySelector('.edit-q-input').value.trim(),
+                options: opts,
+                correctAnswer: opts[correctIdx]
+            };
+        } else {
+            updatedData = {
+                question: editDrawer.querySelector('.edit-q-input').value.trim(),
+                answer: editDrawer.querySelector('.edit-a-input').value.trim()
+            };
+        }
+        handleManualSave(index, type, language, updatedData);
+    });
+
+    return card;
+}
+
+// Global Handlers for Interactive Editing
+async function handleAIRegeneration(index, type, language, promptVal) {
+    const apiKey = GEMINI_API_KEY.trim();
+    if (!apiKey) {
+        alert("Gemini API key is not configured!");
+        return;
+    }
+
+    // 1. Show loader overlay on both English and Hindi cards for this question
+    const cards = document.querySelectorAll(`.preview-q-card[data-index="${index}"][data-type="${type}"]`);
+    cards.forEach(card => {
+        const overlay = document.createElement('div');
+        overlay.className = 'card-loader-overlay';
+        overlay.innerHTML = `<div class="spinner"></div><span>AI Refinement...</span>`;
+        card.appendChild(overlay);
+    });
+
+    try {
+        const englishQuestion = generatedData.english[type][index];
+        const hindiQuestion = generatedData.hindi[type][index];
+
+        const result = await callGeminiAPIForSingleQuestion(apiKey, type, englishQuestion, hindiQuestion, promptVal);
+        
+        // 2. Update state
+        generatedData.english[type][index] = result.english;
+        generatedData.hindi[type][index] = result.hindi;
+
+        // 3. Save to localStorage
+        saveDataToLocalStorage();
+
+        // 4. Re-render
+        renderPreview();
+    } catch (error) {
+        alert("Failed to regenerate question: " + error.message);
+        console.error(error);
+        
+        // Remove overlays in case of error
+        cards.forEach(card => {
+            const overlay = card.querySelector('.card-loader-overlay');
+            if (overlay) overlay.remove();
+        });
+    }
+}
+
+async function callGeminiAPIForSingleQuestion(apiKey, type, englishQuestion, hindiQuestion, promptVal) {
+    const isMcq = type === 'mcqs';
+    let contextPrompt = '';
+    
+    if (isMcq) {
+        contextPrompt = `
+        Current English Question:
+        Question: ${englishQuestion.question}
+        Options:
+        A) ${englishQuestion.options[0]}
+        B) ${englishQuestion.options[1]}
+        C) ${englishQuestion.options[2]}
+        D) ${englishQuestion.options[3]}
+        Correct Answer: ${englishQuestion.correctAnswer}
+
+        Current Hindi Question:
+        Question: ${hindiQuestion.question}
+        Options:
+        A) ${hindiQuestion.options[0]}
+        B) ${hindiQuestion.options[1]}
+        C) ${hindiQuestion.options[2]}
+        D) ${hindiQuestion.options[3]}
+        Correct Answer: ${hindiQuestion.correctAnswer}
+        `;
+    } else {
+        contextPrompt = `
+        Current English Question:
+        Question: ${englishQuestion.question}
+        Answer: ${englishQuestion.answer}
+
+        Current Hindi Question:
+        Question: ${hindiQuestion.question}
+        Answer: ${hindiQuestion.answer}
+        `;
+    }
+
+    const promptText = `
+    You are an expert educational content writer. Your task is to modify a single question from a test bank based on the user's instructions.
+    
+    User Refinement Instruction: "${promptVal}"
+    
+    ${contextPrompt}
+    
+    Requirements:
+    1. Regenerate BOTH the English and Hindi versions.
+    2. Maintain 100% exact parity (translations) between the English and Hindi versions.
+    3. Return the response using the exact JSON schema provided.
+    `;
+
+    let responseSchema;
+    if (isMcq) {
+        responseSchema = {
+            type: "OBJECT",
+            properties: {
+                english: {
+                    type: "OBJECT",
+                    properties: {
+                        question: { type: "STRING" },
+                        options: { type: "ARRAY", items: { type: "STRING" } },
+                        correctAnswer: { type: "STRING" }
+                    },
+                    required: ["question", "options", "correctAnswer"]
+                },
+                hindi: {
+                    type: "OBJECT",
+                    properties: {
+                        question: { type: "STRING" },
+                        options: { type: "ARRAY", items: { type: "STRING" } },
+                        correctAnswer: { type: "STRING" }
+                    },
+                    required: ["question", "options", "correctAnswer"]
+                }
+            },
+            required: ["english", "hindi"]
+        };
+    } else {
+        responseSchema = {
+            type: "OBJECT",
+            properties: {
+                english: {
+                    type: "OBJECT",
+                    properties: {
+                        question: { type: "STRING" },
+                        answer: { type: "STRING" }
+                    },
+                    required: ["question", "answer"]
+                },
+                hindi: {
+                    type: "OBJECT",
+                    properties: {
+                        question: { type: "STRING" },
+                        answer: { type: "STRING" }
+                    },
+                    required: ["question", "answer"]
+                }
+            },
+            required: ["english", "hindi"]
+        };
+    }
+
+    const requestBody = {
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: responseSchema
+        }
+    };
+
+    const model = modelSelect.value;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || `HTTP ${response.status} Error`;
+        throw new Error(`Gemini API Error: ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    try {
+        const textContent = data.candidates[0].content.parts[0].text;
+        return JSON.parse(textContent);
+    } catch (err) {
+        throw new Error("Gemini successfully returned, but failed to format the response into the proper JSON structure.");
+    }
+}
+
+function handleManualSave(index, type, language, updatedData) {
+    // Update local state for specific language
+    generatedData[language][type][index] = updatedData;
+    
+    // Save to localStorage
+    saveDataToLocalStorage();
+
+    // Re-render
+    renderPreview();
+}
+
+function saveDataToLocalStorage() {
+    if (generatedData) {
+        localStorage.setItem('generated_paper_data', JSON.stringify(generatedData));
+    }
+}
+
+function loadSavedData() {
+    const saved = localStorage.getItem('generated_paper_data');
+    if (saved) {
+        try {
+            generatedData = JSON.parse(saved);
+            if (generatedData && generatedData.english && generatedData.hindi) {
+                // Show results card, hide emptyState
+                resultsCard.style.display = 'block';
+                emptyState.style.display = 'none';
+                renderPreview();
+            }
+        } catch (e) {
+            console.error("Failed to parse saved data from localStorage", e);
+            localStorage.removeItem('generated_paper_data');
+        }
+    }
 }
 
 // 6. Generate DOCX with docx.js (UMD)

@@ -108,65 +108,69 @@ Provide 100% exact parity (translations) between the English and Hindi sets. Ret
                     </div>
                 </div>
 
-                <!-- Downloads Card -->
-                <div class="card card-downloads" id="downloadsCard" style="display: none;">
-                    <div class="card-header">
-                        <i data-lucide="file-check" class="text-success"></i>
-                        <h2>Generated Documents</h2>
+                <!-- Results Card -->
+                <div class="card card-results" id="resultsCard" style="display: none;">
+                    <div class="card-header results-header-flex" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div class="header-left" style="display: flex; align-items: center; gap: 12px;">
+                            <i data-lucide="file-text"></i>
+                            <h2>Question Preview & Refinement</h2>
+                        </div>
+                        <button type="button" id="resetBtn" class="btn-reset" title="Start Over">
+                            <i data-lucide="refresh-cw"></i>
+                            <span>Start Over</span>
+                        </button>
                     </div>
                     <div class="card-body">
-                        <p class="success-message">Documents generated successfully! Click below to download the Microsoft Word files.</p>
-                        
-                        <div class="download-grid">
-                            <div class="download-item en-download">
-                                <div class="doc-icon"><i data-lucide="file-text"></i></div>
-                                <div class="doc-info">
-                                    <h3>English Set</h3>
-                                    <p>10 MCQs & 10 Short Questions</p>
-                                    <span class="page-count">2 Pages</span>
-                                </div>
-                                <button class="btn-download" id="downloadEnBtn">
-                                    <i data-lucide="download"></i> Download English
-                                </button>
+                        <!-- Preview Lists -->
+                        <div class="preview-container">
+                            <div class="tabs-header">
+                                <button class="tab-btn active" data-tab="tab-en">English</button>
+                                <button class="tab-btn" data-tab="tab-hi">Hindi</button>
                             </div>
-
-                            <div class="download-item hi-download">
-                                <div class="doc-icon"><i data-lucide="file-text"></i></div>
-                                <div class="doc-info">
-                                    <h3>Hindi Set</h3>
-                                    <p>10 MCQs & 10 Short Questions</p>
-                                    <span class="page-count">2 Pages</span>
+                            <div class="tabs-body">
+                                <div class="tab-panel active" id="tab-en">
+                                    <h4>Multiple Choice Questions (Page 1)</h4>
+                                    <div id="previewEnMcqs" class="preview-list"></div>
+                                    <h4 class="mt-4">Short Answer Questions (Page 2)</h4>
+                                    <div id="previewEnShorts" class="preview-list"></div>
                                 </div>
-                                <button class="btn-download" id="downloadHiBtn">
-                                    <i data-lucide="download"></i> Download Hindi
-                                </button>
+                                <div class="tab-panel" id="tab-hi">
+                                    <h4>बहुविकल्पीय प्रश्न (पेज 1)</h4>
+                                    <div id="previewHiMcqs" class="preview-list"></div>
+                                    <h4 class="mt-4">लघु उत्तरीय प्रश्न (पेज 2)</h4>
+                                    <div id="previewHiShorts" class="preview-list"></div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Accordion for preview -->
-                        <div class="preview-accordion">
-                            <button class="accordion-trigger" id="previewTrigger">
-                                <span>Preview Generated Questions</span>
-                                <i data-lucide="chevron-down"></i>
-                            </button>
-                            <div class="accordion-content" id="previewContent">
-                                <div class="tabs-header">
-                                    <button class="tab-btn active" data-tab="tab-en">English</button>
-                                    <button class="tab-btn" data-tab="tab-hi">Hindi</button>
+                        <!-- Export Section -->
+                        <div class="export-section">
+                            <div class="export-header">
+                                <i data-lucide="check-circle2" class="text-success"></i>
+                                <h3>Export & Download Documents</h3>
+                                <p>Satisfied with the questions? Download your documents below.</p>
+                            </div>
+                            <div class="download-grid">
+                                <div class="download-item en-download">
+                                    <div class="doc-icon"><i data-lucide="file-text"></i></div>
+                                    <div class="doc-info">
+                                        <h3>English Set</h3>
+                                        <p>10 MCQs & 10 Short Questions</p>
+                                    </div>
+                                    <button class="btn-download" id="downloadEnBtn">
+                                        <i data-lucide="download"></i> Download English
+                                    </button>
                                 </div>
-                                <div class="tabs-body">
-                                    <div class="tab-panel active" id="tab-en">
-                                        <h4>Multiple Choice Questions (Page 1)</h4>
-                                        <div id="previewEnMcqs" class="preview-list"></div>
-                                        <h4 class="mt-4">Short Answer Questions (Page 2)</h4>
-                                        <div id="previewEnShorts" class="preview-list"></div>
+
+                                <div class="download-item hi-download">
+                                    <div class="doc-icon"><i data-lucide="file-text"></i></div>
+                                    <div class="doc-info">
+                                        <h3>Hindi Set</h3>
+                                        <p>10 MCQs & 10 Short Questions</p>
                                     </div>
-                                    <div class="tab-panel" id="tab-hi">
-                                        <h4>बहुविकल्पीय प्रश्न (पेज 1)</h4>
-                                        <div id="previewHiMcqs" class="preview-list"></div>
-                                        <h4 class="mt-4">लघु उत्तरीय प्रश्न (पेज 2)</h4>
-                                        <div id="previewHiShorts" class="preview-list"></div>
-                                    </div>
+                                    <button class="btn-download" id="downloadHiBtn">
+                                        <i data-lucide="download"></i> Download Hindi
+                                    </button>
                                 </div>
                             </div>
                         </div>
