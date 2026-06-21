@@ -1,5 +1,5 @@
-// Import docx as ES module from esm.sh CDN
-import * as docx from 'https://esm.sh/docx@8.5.0';
+// docx is loaded via UMD CDN script tag in index.html and is globally available as window.docx
+const docx = window.docx;
 
 // Resolve the API key from localStorage, falling back to window.GEMINI_API_KEY (from config.js)
 let GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || (window.GEMINI_API_KEY || "");
