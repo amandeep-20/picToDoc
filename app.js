@@ -4,19 +4,7 @@ const docx = window.docx;
 // Resolve the API key from localStorage, falling back to window.GEMINI_API_KEY (from config.js)
 let GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || (window.GEMINI_API_KEY || "");
 
-// Initialize the application
-if (document.readyState === "loading") {
-    window.addEventListener('DOMContentLoaded', initApp);
-} else {
-    initApp();
-}
 
-function initApp() {
-    console.log("docx import:", docx);
-    lucide.createIcons();
-    setupEventListeners();
-    loadSavedData();
-}
 
 // App State
 let uploadedFiles = [];
@@ -1210,4 +1198,18 @@ async function generateAndDownloadDocx(language) {
         console.error("DOCX generation error:", err);
         alert(`Failed to generate DOCX file: ${err.message}`);
     }
+}
+
+// Initialize the application after all variables and functions are declared
+if (document.readyState === "loading") {
+    window.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
+
+function initApp() {
+    console.log("docx import:", docx);
+    lucide.createIcons();
+    setupEventListeners();
+    loadSavedData();
 }
