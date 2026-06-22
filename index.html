@@ -33,6 +33,15 @@
                 <h1>Gemini Paper Generator</h1>
             </div>
             <p class="subtitle">Convert study images into bilingual MCQ & Short Answer Word documents instantly.</p>
+            
+            <div class="mode-toggle-container">
+                <button type="button" class="mode-tab-btn active" id="modeSingleBtn">
+                    <i data-lucide="sparkles"></i> Individual Generator
+                </button>
+                <button type="button" class="mode-tab-btn" id="modeFaBtn">
+                    <i data-lucide="layers"></i> FA Paper Builder
+                </button>
+            </div>
         </header>
 
         <main class="app-grid">
@@ -75,7 +84,7 @@
                             </select>
                         </div>
                         
-                        <div class="input-group">
+                        <div class="input-group" id="promptInputGroup">
                             <label for="customPrompt">Instructions Prompt</label>
                             <textarea id="customPrompt" rows="6">Generate exactly 10 Multiple Choice Questions (MCQs) and 10 Short Answer Questions based on the uploaded images.
 
@@ -84,6 +93,60 @@ For Short Answer Questions:
 - Each ANSWER must also be 1-2 sentences long, fully explaining the concept so it is clearly understood.
 
 Provide 100% exact parity (translations) between the English and Hindi sets. Return the result in the specified JSON structure.</textarea>
+                        </div>
+                        
+                        <div class="fa-settings-container" id="faSettingsContainer" style="display: none;">
+                            <h3 class="settings-section-title">Exam Header Info</h3>
+                            <div class="settings-grid">
+                                <div class="input-group">
+                                    <label for="faExamName">Exam Name</label>
+                                    <input type="text" id="faExamName" value="FA - 1">
+                                </div>
+                                <div class="input-group">
+                                    <label for="faSession">Session</label>
+                                    <input type="text" id="faSession" value="2026-27">
+                                </div>
+                                <div class="input-group">
+                                    <label for="faClass">Class</label>
+                                    <input type="text" id="faClass" value="Class 6th">
+                                </div>
+                                <div class="input-group">
+                                    <label for="faSubject">Subject</label>
+                                    <input type="text" id="faSubject" value="Drawing">
+                                </div>
+                                <div class="input-group">
+                                    <label for="faTime">Time Limit</label>
+                                    <input type="text" id="faTime" value="90 minutes">
+                                </div>
+                                <div class="input-group">
+                                    <label for="faMaxMarks">Max Marks</label>
+                                    <input type="text" id="faMaxMarks" value="15">
+                                </div>
+                            </div>
+
+                            <h3 class="settings-section-title mt-4">Question Selection</h3>
+                            <div class="settings-grid">
+                                <div class="input-group">
+                                    <label for="faMcqCount">No. of MCQs</label>
+                                    <input type="number" id="faMcqCount" value="6" min="1">
+                                </div>
+                                <div class="input-group">
+                                    <label for="faMcqMarks">MCQ Marks Subtitle</label>
+                                    <input type="text" id="faMcqMarks" value="1 * 6 = 6 Marks">
+                                </div>
+                                <div class="input-group">
+                                    <label for="faShortTotal">Short Questions to Show</label>
+                                    <input type="number" id="faShortTotal" value="4" min="1">
+                                </div>
+                                <div class="input-group">
+                                    <label for="faShortLimit">Short Questions to Answer</label>
+                                    <input type="number" id="faShortLimit" value="2" min="1">
+                                </div>
+                                <div class="input-group" style="grid-column: span 2;">
+                                    <label for="faShortMarks">Short Answer Marks Subtitle</label>
+                                    <input type="text" id="faShortMarks" value="2 * 2 = 4 Marks">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

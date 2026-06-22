@@ -9,6 +9,7 @@ let GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || (window.GEMINI_AP
 // App State
 let uploadedFiles = [];
 let generatedData = null;
+let currentMode = 'single'; // 'single' or 'fa'
 
 // DOM Elements
 const dropzone = document.getElementById('dropzone');
@@ -18,6 +19,8 @@ const fileCountSpan = document.getElementById('fileCount');
 const thumbnailsGrid = document.getElementById('thumbnailsGrid');
 const modelSelect = document.getElementById('modelSelect');
 const customPromptTextarea = document.getElementById('customPrompt');
+const promptInputGroup = document.getElementById('promptInputGroup');
+const faSettingsContainer = document.getElementById('faSettingsContainer');
 const generateBtn = document.getElementById('generateBtn');
 const statusCard = document.getElementById('statusCard');
 const progressBarFill = document.getElementById('progressBarFill');
@@ -26,6 +29,23 @@ const resultsCard = document.getElementById('resultsCard');
 const emptyState = document.getElementById('emptyState');
 const downloadEnBtn = document.getElementById('downloadEnBtn');
 const downloadHiBtn = document.getElementById('downloadHiBtn');
+
+// Mode Switcher Elements
+const modeSingleBtn = document.getElementById('modeSingleBtn');
+const modeFaBtn = document.getElementById('modeFaBtn');
+
+// FA Header Inputs
+const faExamName = document.getElementById('faExamName');
+const faSession = document.getElementById('faSession');
+const faClass = document.getElementById('faClass');
+const faSubject = document.getElementById('faSubject');
+const faTime = document.getElementById('faTime');
+const faMaxMarks = document.getElementById('faMaxMarks');
+const faMcqCount = document.getElementById('faMcqCount');
+const faMcqMarks = document.getElementById('faMcqMarks');
+const faShortTotal = document.getElementById('faShortTotal');
+const faShortLimit = document.getElementById('faShortLimit');
+const faShortMarks = document.getElementById('faShortMarks');
 
 // Settings Modal DOM Elements
 const settingsBtn = document.getElementById('settingsBtn');
@@ -137,6 +157,60 @@ function setupEventListeners() {
             lucide.createIcons({ attrs: { class: 'lucide' } });
         });
     }
+
+    // Mode Switcher handlers
+    if (modeSingleBtn && modeFaBtn) {
+        modeSingleBtn.addEventListener('click', () => switchMode('single'));
+        modeFaBtn.addEventListener('click', () => switchMode('fa'));
+    }
+}
+
+function switchMode(mode) {
+    if (currentMode === mode) return;
+    currentMode = mode;
+    
+    // Toggle active classes on tab buttons
+    if (mode === 'single') {
+        modeSingleBtn.classList.add('active');
+        modeFaBtn.classList.remove('active');
+        promptInputGroup.style.display = 'flex';
+        faSettingsContainer.style.display = 'none';
+        
+        // Update texts
+        document.querySelector('.card-upload .card-header h2').textContent = "Source Materials (Images / PDFs / Word)";
+        document.querySelector('.dropzone-subtext').textContent = "Upload study pages, images (JPG/PNG), PDFs, or Word docs (.docx) (Max 20MB per file)";
+        fileInput.setAttribute('accept', 'image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        generateBtn.querySelector('span').textContent = "Generate Bilingual Documents";
+        
+        // Update empty state text
+        emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 3-4 images, and click \"Generate Bilingual Documents\" to start the process.";
+    } else {
+        modeFaBtn.classList.add('active');
+        modeSingleBtn.classList.remove('active');
+        promptInputGroup.style.display = 'none';
+        faSettingsContainer.style.display = 'flex';
+        
+        // Update texts
+        document.querySelector('.card-upload .card-header h2').textContent = "Source Generated Documents (.docx)";
+        document.querySelector('.dropzone-subtext').textContent = "Upload previously generated question bank Word documents (.docx) (Max 20MB per file)";
+        fileInput.setAttribute('accept', '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        generateBtn.querySelector('span').textContent = "Generate FA Exam Paper";
+        
+        // Update empty state text
+        emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 4-5 generated .docx files, fill the exam metadata, and click \"Generate FA Exam Paper\" to start.";
+    }
+
+    // Reset current file list and results state
+    uploadedFiles = [];
+    thumbnailsGrid.innerHTML = '';
+    updateFilesUI();
+    checkButtonState();
+    
+    // Clear results/logs state for the new mode
+    generatedData = null;
+    resultsCard.style.display = 'none';
+    emptyState.style.display = 'flex';
+    clearLogs();
 }
 
 // Check if we can enable Generate button
@@ -312,6 +386,7 @@ function extractTextFromDocx(file) {
 }
 
 // 4. Gemini API Call
+// 4. Gemini API Call
 async function startGenerationFlow() {
     const apiKey = GEMINI_API_KEY.trim();
     if (!apiKey) {
@@ -331,7 +406,7 @@ async function startGenerationFlow() {
     addLog('Starting compilation process...', 'info');
 
     try {
-        // Step 1: Base64 encode images & PDFs, and extract text from DOCX
+        // Step 1: Parse uploaded files
         setProgress(25);
         addLog('Parsing uploaded files...', 'loading');
         
@@ -343,7 +418,7 @@ async function startGenerationFlow() {
             const isPdf = file.type === 'application/pdf';
             const isDocx = file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
             
-            if (isImage) {
+            if (isImage && currentMode === 'single') {
                 const base64 = await fileToBase64(file);
                 mediaParts.push({
                     inlineData: {
@@ -352,7 +427,7 @@ async function startGenerationFlow() {
                     }
                 });
                 addLog(`Encoded image: ${file.name} (${Math.round(file.size / 1024)} KB)`, 'info');
-            } else if (isPdf) {
+            } else if (isPdf && currentMode === 'single') {
                 const base64 = await fileToBase64(file);
                 mediaParts.push({
                     inlineData: {
@@ -369,15 +444,41 @@ async function startGenerationFlow() {
                     text: docText
                 });
                 addLog(`Extracted text from ${file.name} (${docText.length} characters)`, 'success');
+            } else if (currentMode === 'fa') {
+                addLog(`Skipped: '${file.name}' is not supported in FA Paper Builder mode. Only Word documents are supported.`, 'warn');
             }
         }
         
+        if (currentMode === 'fa' && extractedTexts.length === 0) {
+            throw new Error("No Word documents successfully parsed. Please upload at least one .docx question bank document.");
+        }
+
         // Step 2: Form prompt and call Gemini API
         setProgress(50);
         addLog('Calling Google Gemini API model...', 'loading');
         const model = modelSelect.value;
         
-        const responseJson = await callGeminiAPI(apiKey, model, mediaParts, extractedTexts);
+        let responseJson;
+        if (currentMode === 'single') {
+            responseJson = await callGeminiAPI(apiKey, model, mediaParts, extractedTexts);
+        } else {
+            responseJson = await callGeminiAPIForFaPaper(apiKey, model, extractedTexts);
+            
+            // Attach examHeader info to save it in local state
+            responseJson.examHeader = {
+                examName: faExamName.value.trim(),
+                session: faSession.value.trim(),
+                class: faClass.value.trim(),
+                subject: faSubject.value.trim(),
+                time: faTime.value.trim(),
+                maxMarks: faMaxMarks.value.trim(),
+                mcqCount: parseInt(faMcqCount.value) || 6,
+                mcqMarks: faMcqMarks.value.trim(),
+                shortTotal: parseInt(faShortTotal.value) || 4,
+                shortLimit: parseInt(faShortLimit.value) || 2,
+                shortMarks: faShortMarks.value.trim()
+            };
+        }
         
         // Step 3: Handle API success
         setProgress(85);
@@ -405,6 +506,138 @@ async function startGenerationFlow() {
         addLog(error.message || 'An unexpected error occurred.', 'error');
         generateBtn.disabled = false;
         console.error(error);
+    }
+}
+
+async function callGeminiAPIForFaPaper(apiKey, model, extractedTexts) {
+    const mcqCount = parseInt(faMcqCount.value) || 6;
+    const shortTotal = parseInt(faShortTotal.value) || 4;
+
+    let sourceQuestionsText = "";
+    extractedTexts.forEach((doc, idx) => {
+        sourceQuestionsText += `\n\n--- Source Document ${idx + 1}: ${doc.name} ---\n${doc.text}\n`;
+    });
+
+    const promptText = `
+You are an expert school examination paper compiler. Your task is to generate a consolidated exam paper based ONLY on the questions present in the provided source documents.
+
+Source Documents Content:
+${sourceQuestionsText}
+
+Instructions:
+1. Extract and select exactly ${mcqCount} Multiple Choice Questions (MCQs) and exactly ${shortTotal} Short Answer Questions from the source documents.
+2. Under no circumstances should you invent new questions or introduce external concepts. You must only use/adapt the questions that exist in the source documents.
+3. For each selected question, you must compile:
+   - An English version.
+   - A Hindi version with 100% exact translation parity.
+4. For MCQs, ensure that:
+   - The correct answer matches one of the options.
+   - The translation is natural and accurate in both languages.
+5. Return the result in the exact JSON schema provided below.
+`;
+
+    const responseSchema = {
+        type: "OBJECT",
+        properties: {
+            english: {
+                type: "OBJECT",
+                properties: {
+                    mcqs: {
+                        type: "ARRAY",
+                        description: `List of exactly ${mcqCount} multiple choice questions in English`,
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                question: { type: "STRING" },
+                                options: { type: "ARRAY", items: { type: "STRING" } },
+                                correctAnswer: { type: "STRING" }
+                            },
+                            required: ["question", "options", "correctAnswer"]
+                        }
+                    },
+                    shortAnswers: {
+                        type: "ARRAY",
+                        description: `List of exactly ${shortTotal} short answer questions in English`,
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                question: { type: "STRING" },
+                                answer: { type: "STRING" }
+                            },
+                            required: ["question", "answer"]
+                        }
+                    }
+                },
+                required: ["mcqs", "shortAnswers"]
+            },
+            hindi: {
+                type: "OBJECT",
+                properties: {
+                    mcqs: {
+                        type: "ARRAY",
+                        description: `List of exactly ${mcqCount} multiple choice questions in Hindi (exact translation of English set)`,
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                question: { type: "STRING" },
+                                options: { type: "ARRAY", items: { type: "STRING" } },
+                                correctAnswer: { type: "STRING" }
+                            },
+                            required: ["question", "options", "correctAnswer"]
+                        }
+                    },
+                    shortAnswers: {
+                        type: "ARRAY",
+                        description: `List of exactly ${shortTotal} short answer questions in Hindi (exact translation of English set)`,
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                question: { type: "STRING" },
+                                answer: { type: "STRING" }
+                            },
+                            required: ["question", "answer"]
+                        }
+                    }
+                },
+                required: ["mcqs", "shortAnswers"]
+            }
+        },
+        required: ["english", "hindi"]
+    };
+
+    const requestBody = {
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: responseSchema
+        }
+    };
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || `HTTP ${response.status} Error`;
+        throw new Error(`Gemini API Error: ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    try {
+        const textContent = data.candidates[0].content.parts[0].text;
+        const parsedJson = JSON.parse(textContent);
+        if (!parsedJson.english || !parsedJson.hindi || !parsedJson.english.mcqs || !parsedJson.english.shortAnswers) {
+            throw new Error("Invalid structure returned from Gemini API.");
+        }
+        return parsedJson;
+    } catch (err) {
+        console.error("Failed to parse Gemini response text as JSON:", err);
+        throw new Error("Gemini successfully returned, but failed to format the response into the proper JSON structure. Please check model and parameters and try again.");
     }
 }
 
@@ -964,6 +1197,53 @@ function loadSavedData() {
         try {
             generatedData = JSON.parse(saved);
             if (generatedData && generatedData.english && generatedData.hindi) {
+                if (generatedData.examHeader) {
+                    currentMode = 'fa';
+                    // Toggle active classes on tab buttons
+                    modeFaBtn.classList.add('active');
+                    modeSingleBtn.classList.remove('active');
+                    promptInputGroup.style.display = 'none';
+                    faSettingsContainer.style.display = 'flex';
+                    
+                    // Update texts
+                    document.querySelector('.card-upload .card-header h2').textContent = "Source Generated Documents (.docx)";
+                    document.querySelector('.dropzone-subtext').textContent = "Upload previously generated question bank Word documents (.docx) (Max 20MB per file)";
+                    fileInput.setAttribute('accept', '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+                    generateBtn.querySelector('span').textContent = "Generate FA Exam Paper";
+                    
+                    // Update empty state text
+                    emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 4-5 generated .docx files, fill the exam metadata, and click \"Generate FA Exam Paper\" to start.";
+                    
+                    // Populate inputs
+                    const h = generatedData.examHeader;
+                    if (faExamName) faExamName.value = h.examName || "FA - 1";
+                    if (faSession) faSession.value = h.session || "2026-27";
+                    if (faClass) faClass.value = h.class || "Class 6th";
+                    if (faSubject) faSubject.value = h.subject || "Drawing";
+                    if (faTime) faTime.value = h.time || "90 minutes";
+                    if (faMaxMarks) faMaxMarks.value = h.maxMarks || "15";
+                    if (faMcqCount) faMcqCount.value = h.mcqCount || 6;
+                    if (faMcqMarks) faMcqMarks.value = h.mcqMarks || "1 * 6 = 6 Marks";
+                    if (faShortTotal) faShortTotal.value = h.shortTotal || 4;
+                    if (faShortLimit) faShortLimit.value = h.shortLimit || 2;
+                    if (faShortMarks) faShortMarks.value = h.shortMarks || "2 * 2 = 4 Marks";
+                } else {
+                    currentMode = 'single';
+                    modeSingleBtn.classList.add('active');
+                    modeFaBtn.classList.remove('active');
+                    promptInputGroup.style.display = 'flex';
+                    faSettingsContainer.style.display = 'none';
+                    
+                    // Update texts
+                    document.querySelector('.card-upload .card-header h2').textContent = "Source Materials (Images / PDFs / Word)";
+                    document.querySelector('.dropzone-subtext').textContent = "Upload study pages, images (JPG/PNG), PDFs, or Word docs (.docx) (Max 20MB per file)";
+                    fileInput.setAttribute('accept', 'image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+                    generateBtn.querySelector('span').textContent = "Generate Bilingual Documents";
+                    
+                    // Update empty state text
+                    emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 3-4 images, and click \"Generate Bilingual Documents\" to start the process.";
+                }
+
                 // Show results card, hide emptyState
                 resultsCard.style.display = 'block';
                 emptyState.style.display = 'none';
@@ -987,195 +1267,474 @@ async function generateAndDownloadDocx(language) {
         const dataset = generatedData[language];
         const isEnglish = language === 'english';
         
-        const titleText = isEnglish ? "ASSESSMENT QUESTION BANK" : "मूल्यांकन प्रश्न बैंक";
-        const mcqHeadingText = isEnglish ? "Section A: Multiple Choice Questions (MCQs)" : "भाग अ: बहुविकल्पीय प्रश्न (MCQs)";
-        const shortHeadingText = isEnglish ? "Section B: Short Answer Questions" : "भाग ब: लघु उत्तरीय प्रश्न";
-        const answerLabel = isEnglish ? "Correct Answer" : "सही उत्तर";
-        const modelLabel = isEnglish ? "Generated via Gemini AI model" : "जेमिनी एआई मॉडल द्वारा उत्पन्न";
+        // Dynamic live read of FA header inputs to merge into state at download time if it is an FA paper
+        if (generatedData.examHeader) {
+            generatedData.examHeader = {
+                examName: faExamName.value.trim(),
+                session: faSession.value.trim(),
+                class: faClass.value.trim(),
+                subject: faSubject.value.trim(),
+                time: faTime.value.trim(),
+                maxMarks: faMaxMarks.value.trim(),
+                mcqCount: parseInt(faMcqCount.value) || 6,
+                mcqMarks: faMcqMarks.value.trim(),
+                shortTotal: parseInt(faShortTotal.value) || 4,
+                shortLimit: parseInt(faShortLimit.value) || 2,
+                shortMarks: faShortMarks.value.trim()
+            };
+            saveDataToLocalStorage();
+        }
 
         const { Document, Paragraph, TextRun, PageBreak, HeadingLevel, AlignmentType } = docx;
-
         const children = [];
 
-        // Main Document Header
-        children.push(
-            new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 120 },
-                children: [
-                    new TextRun({
-                        text: titleText,
-                        bold: true,
-                        size: 36, // 18pt
-                        font: "Calibri",
-                        color: "1A365D" // Deep blue color
-                    })
-                ]
-            }),
-            new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 360 },
-                children: [
-                    new TextRun({
-                        text: `${modelLabel} • ${new Date().toLocaleDateString()}`,
-                        size: 20, // 10pt
-                        font: "Calibri",
-                        color: "718096" // Slate gray
-                    })
-                ]
-            })
-        );
-
-        // --- PAGE 1: MCQs ---
-        children.push(
-            new Paragraph({
-                heading: HeadingLevel.HEADING_1,
-                spacing: { before: 240, after: 180 },
-                children: [
-                    new TextRun({
-                        text: mcqHeadingText,
-                        bold: true,
-                        size: 28, // 14pt
-                        font: "Calibri",
-                        color: "2B6CB0"
-                    })
-                ]
-            })
-        );
-
-        dataset.mcqs.forEach((mcq, idx) => {
-            // Question text
+        if (generatedData.examHeader) {
+            // ==========================================
+            // FA EXAM PAPER FORMAT
+            // ==========================================
+            const h = generatedData.examHeader;
+            
+            // Header Text: "FA - 1    Session (2026-27).   Class 6th  subject Drawing"
+            // Bold & Italic
+            const headerText = `${h.examName}    Session (${h.session}).   ${h.class}  subject ${h.subject}`;
+            const subheaderText = `Time:   ${h.time}.    | Max. Marks: ${h.maxMarks}`;
+            
             children.push(
                 new Paragraph({
-                    spacing: { before: 120, after: 80 },
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 120 },
                     children: [
                         new TextRun({
-                            text: `${idx + 1}. `,
+                            text: headerText,
                             bold: true,
+                            italics: true,
+                            size: 26, // 13pt
                             font: "Calibri",
-                            size: 24 // 12pt
-                        }),
+                            color: "000000"
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 360 },
+                    children: [
                         new TextRun({
-                            text: mcq.question,
+                            text: subheaderText,
+                            bold: true,
+                            size: 24, // 12pt
                             font: "Calibri",
-                            size: 24 // 12pt
+                            color: "000000"
                         })
                     ]
                 })
             );
-
-            // Options (Indented)
-            const letters = ['A', 'B', 'C', 'D'];
-            mcq.options.forEach((opt, optIdx) => {
+            
+            // Section A: MCQ Header
+            const mcqSectionHeader = isEnglish ? "Section - A    (MCQ)" : "विभाग - अ    (बहुविकल्पीय)";
+            const mcqInstruction = isEnglish 
+                ? `Q1 Choose the correct answer:    (${h.mcqMarks})` 
+                : `प्रश्न 1 सही उत्तर चुनिए:    (${h.mcqMarks})`;
+                
+            children.push(
+                new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 240, after: 180 },
+                    children: [
+                        new TextRun({
+                            text: mcqSectionHeader,
+                            bold: true,
+                            size: 28, // 14pt
+                            font: "Calibri",
+                            color: "2B6CB0" // Blue color from template
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    spacing: { after: 200 },
+                    children: [
+                        new TextRun({
+                            text: mcqInstruction,
+                            bold: true,
+                            size: 24,
+                            font: "Calibri",
+                            color: "000000"
+                        })
+                    ]
+                })
+            );
+            
+            // Render MCQs with letters (A), (B), (C)... and options 1), 2), 3), 4)...
+            const questionLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"];
+            dataset.mcqs.forEach((mcq, idx) => {
+                const qLetter = questionLetters[idx] || (idx + 1).toString();
+                
                 children.push(
                     new Paragraph({
-                        indent: { left: 720 }, // 0.5 inches indentation
+                        spacing: { before: 120, after: 80 },
+                        children: [
+                            new TextRun({
+                                text: `(${qLetter}) ${mcq.question}`,
+                                bold: true,
+                                font: "Calibri",
+                                size: 22
+                            })
+                        ]
+                    })
+                );
+                
+                mcq.options.forEach((opt, optIdx) => {
+                    children.push(
+                        new Paragraph({
+                            indent: { left: 540 }, // Indent option
+                            spacing: { after: 40 },
+                            children: [
+                                new TextRun({
+                                    text: `${optIdx + 1})  ${opt}`,
+                                    font: "Calibri",
+                                    size: 22
+                                })
+                            ]
+                        })
+                    );
+                });
+            });
+            
+            // Section B: Short Answer Header
+            const shortSectionHeader = isEnglish ? "Section - B (Short Answer)" : "विभाग - ब (लघु उत्तरीय)";
+            const shortInstruction = isEnglish 
+                ? `Answer any ${h.shortLimit} questions:        (${h.shortMarks})` 
+                : `किन्हीं ${h.shortLimit} प्रश्नों के उत्तर दीजिए:        (${h.shortMarks})`;
+                
+            children.push(
+                new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 360, after: 180 },
+                    children: [
+                        new TextRun({
+                            text: shortSectionHeader,
+                            bold: true,
+                            size: 28,
+                            font: "Calibri",
+                            color: "2B6CB0"
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    spacing: { after: 200 },
+                    children: [
+                        new TextRun({
+                            text: shortInstruction,
+                            bold: true,
+                            size: 24,
+                            font: "Calibri",
+                            color: "000000"
+                        })
+                    ]
+                })
+            );
+            
+            // Render Short Answers (unnumbered, paragraph list)
+            dataset.shortAnswers.forEach((sa) => {
+                children.push(
+                    new Paragraph({
+                        spacing: { before: 120, after: 80 },
+                        children: [
+                            new TextRun({
+                                text: sa.question,
+                                font: "Calibri",
+                                size: 22
+                            })
+                        ]
+                    })
+                );
+            });
+            
+            // ANSWER KEY ON SEPARATE PAGE
+            children.push(new PageBreak());
+            
+            const keyHeader = isEnglish ? "ANSWER KEY (FOR TEACHERS ONLY)" : "उत्तर कुंजी (केवल शिक्षकों के लिए)";
+            children.push(
+                new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 120, after: 240 },
+                    children: [
+                        new TextRun({
+                            text: keyHeader,
+                            bold: true,
+                            size: 32,
+                            font: "Calibri",
+                            color: "2F855A"
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    spacing: { before: 120, after: 80 },
+                    children: [
+                        new TextRun({
+                            text: isEnglish ? "Section A MCQs Correct Answers:" : "विभाग अ बहुविकल्पीय सही उत्तर:",
+                            bold: true,
+                            size: 24,
+                            font: "Calibri"
+                        })
+                    ]
+                })
+            );
+            
+            dataset.mcqs.forEach((mcq, idx) => {
+                const qLetter = questionLetters[idx] || (idx + 1).toString();
+                children.push(
+                    new Paragraph({
+                        indent: { left: 360 },
                         spacing: { after: 40 },
                         children: [
                             new TextRun({
-                                text: `(${letters[optIdx]}) `,
+                                text: `(${qLetter})  Correct Answer: `,
                                 bold: true,
-                                font: "Calibri",
-                                size: 22 // 11pt
+                                size: 22,
+                                font: "Calibri"
                             }),
                             new TextRun({
-                                text: opt,
+                                text: mcq.correctAnswer,
+                                size: 22,
                                 font: "Calibri",
-                                size: 22 // 11pt
+                                color: "2F855A"
+                            })
+                        ]
+                    })
+                );
+            });
+            
+            children.push(
+                new Paragraph({
+                    spacing: { before: 240, after: 80 },
+                    children: [
+                        new TextRun({
+                            text: isEnglish ? "Section B Short Answers Model Answers:" : "विभाग ब लघु उत्तरीय मॉडल उत्तर:",
+                            bold: true,
+                            size: 24,
+                            font: "Calibri"
+                        })
+                    ]
+                })
+            );
+            
+            dataset.shortAnswers.forEach((sa) => {
+                children.push(
+                    new Paragraph({
+                        spacing: { before: 120, after: 40 },
+                        children: [
+                            new TextRun({
+                                text: `Q. ${sa.question}`,
+                                bold: true,
+                                size: 22,
+                                font: "Calibri"
+                            })
+                        ]
+                    }),
+                    new Paragraph({
+                        indent: { left: 360 },
+                        spacing: { after: 120 },
+                        children: [
+                            new TextRun({
+                                text: isEnglish ? "Model Answer: " : "मॉडल उत्तर: ",
+                                bold: true,
+                                size: 22,
+                                font: "Calibri",
+                                color: "4A5568"
+                            }),
+                            new TextRun({
+                                text: sa.answer,
+                                size: 22,
+                                font: "Calibri",
+                                color: "2D3748"
                             })
                         ]
                     })
                 );
             });
 
-            // Answer
+        } else {
+            // ==========================================
+            // INDIVIDUAL STANDARD GENERATOR FORMATTING
+            // ==========================================
+            const titleText = isEnglish ? "ASSESSMENT QUESTION BANK" : "मूल्यांकन प्रश्न बैंक";
+            const mcqHeadingText = isEnglish ? "Section A: Multiple Choice Questions (MCQs)" : "भाग अ: बहुविकल्पीय प्रश्न (MCQs)";
+            const shortHeadingText = isEnglish ? "Section B: Short Answer Questions" : "भाग ब: लघु उत्तरीय प्रश्न";
+            const answerLabel = isEnglish ? "Correct Answer" : "सही उत्तर";
+            const modelLabel = isEnglish ? "Generated via Gemini AI model" : "जेमिनी एआई मॉडल द्वारा उत्पन्न";
+
             children.push(
                 new Paragraph({
-                    indent: { left: 720 },
-                    spacing: { after: 180 },
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 120 },
                     children: [
                         new TextRun({
-                            text: `${answerLabel}: `,
+                            text: titleText,
                             bold: true,
+                            size: 36, // 18pt
                             font: "Calibri",
-                            size: 22,
-                            color: "2F855A" // Dark green
-                        }),
+                            color: "1A365D"
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 360 },
+                    children: [
                         new TextRun({
-                            text: mcq.correctAnswer,
+                            text: `${modelLabel} • ${new Date().toLocaleDateString()}`,
+                            size: 20, // 10pt
                             font: "Calibri",
-                            size: 22,
-                            color: "2F855A"
+                            color: "718096"
                         })
                     ]
                 })
             );
-        });
 
-        // PAGE BREAK
-        children.push(new PageBreak());
+            // MCQs Page Heading
+            children.push(
+                new Paragraph({
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { before: 240, after: 180 },
+                    children: [
+                        new TextRun({
+                            text: mcqHeadingText,
+                            bold: true,
+                            size: 28,
+                            font: "Calibri",
+                            color: "2B6CB0"
+                        })
+                    ]
+                })
+            );
 
-        // --- PAGE 2: SHORT ANSWER QUESTIONS ---
-        children.push(
-            new Paragraph({
-                heading: HeadingLevel.HEADING_1,
-                spacing: { before: 240, after: 180 },
-                children: [
-                    new TextRun({
-                        text: shortHeadingText,
-                        bold: true,
-                        size: 28, // 14pt
-                        font: "Calibri",
-                        color: "2B6CB0"
+            dataset.mcqs.forEach((mcq, idx) => {
+                children.push(
+                    new Paragraph({
+                        spacing: { before: 120, after: 80 },
+                        children: [
+                            new TextRun({
+                                text: `${idx + 1}. `,
+                                bold: true,
+                                font: "Calibri",
+                                size: 24
+                            }),
+                            new TextRun({
+                                text: mcq.question,
+                                font: "Calibri",
+                                size: 24
+                            })
+                        ]
                     })
-                ]
-            })
-        );
+                );
 
-        dataset.shortAnswers.forEach((sa, idx) => {
-            // Question
+                const letters = ['A', 'B', 'C', 'D'];
+                mcq.options.forEach((opt, optIdx) => {
+                    children.push(
+                        new Paragraph({
+                            indent: { left: 720 },
+                            spacing: { after: 40 },
+                            children: [
+                                new TextRun({
+                                    text: `(${letters[optIdx]}) `,
+                                    bold: true,
+                                    font: "Calibri",
+                                    size: 22
+                                }),
+                                new TextRun({
+                                    text: opt,
+                                    font: "Calibri",
+                                    size: 22
+                                })
+                            ]
+                        })
+                    );
+                });
+
+                children.push(
+                    new Paragraph({
+                        indent: { left: 720 },
+                        spacing: { after: 180 },
+                        children: [
+                            new TextRun({
+                                text: `${answerLabel}: `,
+                                bold: true,
+                                font: "Calibri",
+                                size: 22,
+                                color: "2F855A"
+                            }),
+                            new TextRun({
+                                text: mcq.correctAnswer,
+                                font: "Calibri",
+                                size: 22,
+                                color: "2F855A"
+                            })
+                        ]
+                    })
+                );
+            });
+
+            // Short Questions Page Break & Heading
+            children.push(new PageBreak());
             children.push(
                 new Paragraph({
-                    spacing: { before: 120, after: 80 },
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { before: 240, after: 180 },
                     children: [
                         new TextRun({
-                            text: `Q${idx + 1}. `,
+                            text: shortHeadingText,
                             bold: true,
+                            size: 28,
                             font: "Calibri",
-                            size: 24 // 12pt
-                        }),
-                        new TextRun({
-                            text: sa.question,
-                            font: "Calibri",
-                            size: 24 // 12pt
+                            color: "2B6CB0"
                         })
                     ]
                 })
             );
 
-            // Answer
-            children.push(
-                new Paragraph({
-                    indent: { left: 720 },
-                    spacing: { after: 180 },
-                    children: [
-                        new TextRun({
-                            text: isEnglish ? "Answer: " : "उत्तर: ",
-                            bold: true,
-                            font: "Calibri",
-                            size: 22,
-                            color: "4A5568"
-                        }),
-                        new TextRun({
-                            text: sa.answer,
-                            font: "Calibri",
-                            size: 22,
-                            color: "2D3748"
-                        })
-                    ]
-                })
-            );
-        });
+            dataset.shortAnswers.forEach((sa, idx) => {
+                children.push(
+                    new Paragraph({
+                        spacing: { before: 120, after: 80 },
+                        children: [
+                            new TextRun({
+                                text: `Q${idx + 1}. `,
+                                bold: true,
+                                font: "Calibri",
+                                size: 24
+                            }),
+                            new TextRun({
+                                text: sa.question,
+                                font: "Calibri",
+                                size: 24
+                            })
+                        ]
+                    })
+                );
+
+                children.push(
+                    new Paragraph({
+                        indent: { left: 720 },
+                        spacing: { after: 180 },
+                        children: [
+                            new TextRun({
+                                text: isEnglish ? "Answer: " : "उत्तर: ",
+                                bold: true,
+                                font: "Calibri",
+                                size: 22,
+                                color: "4A5568"
+                            }),
+                            new TextRun({
+                                text: sa.answer,
+                                font: "Calibri",
+                                size: 22,
+                                color: "2D3748"
+                            })
+                        ]
+                    })
+                );
+            });
+        }
 
         // Initialize document with the children list inside a single section
         const doc = new Document({
@@ -1191,7 +1750,15 @@ async function generateAndDownloadDocx(language) {
         
         const a = document.createElement("a");
         a.href = url;
-        a.download = isEnglish ? "assessment_english.docx" : "assessment_hindi.docx";
+        
+        let filename = isEnglish ? "assessment_english.docx" : "assessment_hindi.docx";
+        if (generatedData.examHeader) {
+            const h = generatedData.examHeader;
+            const prefix = `${h.examName}_${h.class}_${h.subject}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            filename = isEnglish ? `${prefix}_english.docx` : `${prefix}_hindi.docx`;
+        }
+        
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         
