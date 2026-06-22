@@ -1346,7 +1346,7 @@ async function generateAndDownloadDocx(language) {
             children.push(
                 new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    spacing: { before: 240, after: 180 },
+                    spacing: { before: 180, after: 100 },
                     children: [
                         new TextRun({
                             text: mcqSectionHeader,
@@ -1358,7 +1358,7 @@ async function generateAndDownloadDocx(language) {
                     ]
                 }),
                 new Paragraph({
-                    spacing: { after: 200 },
+                    spacing: { after: 120 },
                     children: [
                         new TextRun({
                             text: mcqInstruction,
@@ -1378,7 +1378,7 @@ async function generateAndDownloadDocx(language) {
                 
                 children.push(
                     new Paragraph({
-                        spacing: { before: 120, after: 80 },
+                        spacing: { before: 100, after: 60 },
                         children: [
                             new TextRun({
                                 text: `(${qLetter}) ${mcq.question}`,
@@ -1390,21 +1390,43 @@ async function generateAndDownloadDocx(language) {
                     })
                 );
                 
-                mcq.options.forEach((opt, optIdx) => {
-                    children.push(
-                        new Paragraph({
-                            indent: { left: 540 }, // Indent option
-                            spacing: { after: 40 },
-                            children: [
-                                new TextRun({
-                                    text: `${optIdx + 1})  ${opt}`,
-                                    font: "Calibri",
-                                    size: 22
-                                })
-                            ]
-                        })
-                    );
-                });
+                // Render options in 2x2 grid to save space
+                children.push(
+                    new Paragraph({
+                        indent: { left: 540 },
+                        tabStops: [{ position: 4320 }], // 3 inches from margin
+                        spacing: { after: 40 },
+                        children: [
+                            new TextRun({
+                                text: `1)  ${mcq.options[0]}`,
+                                font: "Calibri",
+                                size: 22
+                            }),
+                            new TextRun({
+                                text: `\t2)  ${mcq.options[1]}`,
+                                font: "Calibri",
+                                size: 22
+                            })
+                        ]
+                    }),
+                    new Paragraph({
+                        indent: { left: 540 },
+                        tabStops: [{ position: 4320 }],
+                        spacing: { after: 40 },
+                        children: [
+                            new TextRun({
+                                text: `3)  ${mcq.options[2]}`,
+                                font: "Calibri",
+                                size: 22
+                            }),
+                            new TextRun({
+                                text: `\t4)  ${mcq.options[3]}`,
+                                font: "Calibri",
+                                size: 22
+                            })
+                        ]
+                    })
+                );
             });
             
             // Section B: Short Answer Header
@@ -1416,7 +1438,7 @@ async function generateAndDownloadDocx(language) {
             children.push(
                 new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    spacing: { before: 360, after: 180 },
+                    spacing: { before: 240, after: 100 },
                     children: [
                         new TextRun({
                             text: shortSectionHeader,
@@ -1428,7 +1450,7 @@ async function generateAndDownloadDocx(language) {
                     ]
                 }),
                 new Paragraph({
-                    spacing: { after: 200 },
+                    spacing: { after: 120 },
                     children: [
                         new TextRun({
                             text: shortInstruction,
@@ -1445,7 +1467,7 @@ async function generateAndDownloadDocx(language) {
             dataset.shortAnswers.forEach((sa) => {
                 children.push(
                     new Paragraph({
-                        spacing: { before: 120, after: 80 },
+                        spacing: { before: 100, after: 60 },
                         children: [
                             new TextRun({
                                 text: sa.question,
@@ -1464,7 +1486,7 @@ async function generateAndDownloadDocx(language) {
             children.push(
                 new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    spacing: { before: 360, after: 180 },
+                    spacing: { before: 240, after: 100 },
                     children: [
                         new TextRun({
                             text: `${longSectionHeader}        ${longMarksText}`,
@@ -1476,9 +1498,9 @@ async function generateAndDownloadDocx(language) {
                     ]
                 }),
                 // Add empty paragraphs to serve as manual typing space for Section C
-                new Paragraph({ spacing: { before: 120, after: 120 }, children: [new TextRun({ text: "" })] }),
-                new Paragraph({ spacing: { before: 120, after: 120 }, children: [new TextRun({ text: "" })] }),
-                new Paragraph({ spacing: { before: 120, after: 120 }, children: [new TextRun({ text: "" })] })
+                new Paragraph({ spacing: { before: 60, after: 60 }, children: [new TextRun({ text: "" })] }),
+                new Paragraph({ spacing: { before: 60, after: 60 }, children: [new TextRun({ text: "" })] }),
+                new Paragraph({ spacing: { before: 60, after: 60 }, children: [new TextRun({ text: "" })] })
             );
             
             // ANSWER KEY ON SEPARATE PAGE
