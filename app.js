@@ -142,9 +142,8 @@ function setupEventListeners() {
 
 // Check if we can enable Generate button
 function checkButtonState() {
-    const hasKey = GEMINI_API_KEY.trim().length > 0;
     const hasFiles = uploadedFiles.length > 0;
-    generateBtn.disabled = !(hasKey && hasFiles);
+    generateBtn.disabled = !hasFiles;
 }
 
 // 2. Handle Uploaded Files
