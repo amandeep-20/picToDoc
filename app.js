@@ -38,7 +38,6 @@ const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 // 1. Setup & Event Listeners
 function setupEventListeners() {
     // Dropzone events
-    dropzone.addEventListener('click', () => fileInput.click());
     
     dropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
