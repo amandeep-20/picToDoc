@@ -46,6 +46,8 @@ const faMcqMarks = document.getElementById('faMcqMarks');
 const faShortTotal = document.getElementById('faShortTotal');
 const faShortLimit = document.getElementById('faShortLimit');
 const faShortMarks = document.getElementById('faShortMarks');
+const faLongHeader = document.getElementById('faLongHeader');
+const faLongMarks = document.getElementById('faLongMarks');
 
 // Settings Modal DOM Elements
 const settingsBtn = document.getElementById('settingsBtn');
@@ -476,7 +478,9 @@ async function startGenerationFlow() {
                 mcqMarks: faMcqMarks.value.trim(),
                 shortTotal: parseInt(faShortTotal.value) || 4,
                 shortLimit: parseInt(faShortLimit.value) || 2,
-                shortMarks: faShortMarks.value.trim()
+                shortMarks: faShortMarks.value.trim(),
+                longHeader: faLongHeader.value.trim(),
+                longMarks: faLongMarks.value.trim()
             };
         }
         
@@ -1227,6 +1231,8 @@ function loadSavedData() {
                     if (faShortTotal) faShortTotal.value = h.shortTotal || 4;
                     if (faShortLimit) faShortLimit.value = h.shortLimit || 2;
                     if (faShortMarks) faShortMarks.value = h.shortMarks || "2 * 2 = 4 Marks";
+                    if (faLongHeader) faLongHeader.value = h.longHeader || "Section - C (Long Answer / Practical)";
+                    if (faLongMarks) faLongMarks.value = h.longMarks || "(5 marks)";
                 } else {
                     currentMode = 'single';
                     modeSingleBtn.classList.add('active');
@@ -1280,7 +1286,9 @@ async function generateAndDownloadDocx(language) {
                 mcqMarks: faMcqMarks.value.trim(),
                 shortTotal: parseInt(faShortTotal.value) || 4,
                 shortLimit: parseInt(faShortLimit.value) || 2,
-                shortMarks: faShortMarks.value.trim()
+                shortMarks: faShortMarks.value.trim(),
+                longHeader: faLongHeader.value.trim(),
+                longMarks: faLongMarks.value.trim()
             };
             saveDataToLocalStorage();
         }
@@ -1449,6 +1457,30 @@ async function generateAndDownloadDocx(language) {
                 );
             });
             
+            // Section - C (Long Answer / Practical)
+            const longSectionHeader = h.longHeader || "Section - C (Long Answer / Practical)";
+            const longMarksText = h.longMarks || "(5 marks)";
+            
+            children.push(
+                new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 360, after: 180 },
+                    children: [
+                        new TextRun({
+                            text: `${longSectionHeader}        ${longMarksText}`,
+                            bold: true,
+                            size: 28,
+                            font: "Calibri",
+                            color: "2B6CB0"
+                        })
+                    ]
+                }),
+                // Add empty paragraphs to serve as manual typing space for Section C
+                new Paragraph({ spacing: { before: 120, after: 120 }, children: [new TextRun({ text: "" })] }),
+                new Paragraph({ spacing: { before: 120, after: 120 }, children: [new TextRun({ text: "" })] }),
+                new Paragraph({ spacing: { before: 120, after: 120 }, children: [new TextRun({ text: "" })] })
+            );
+            
             // ANSWER KEY ON SEPARATE PAGE
             children.push(new PageBreak());
             
@@ -1552,6 +1584,36 @@ async function generateAndDownloadDocx(language) {
                     })
                 );
             });
+
+            // Section C: Long Answer / Practical Answer Key Placeholder
+            children.push(
+                new Paragraph({
+                    spacing: { before: 240, after: 80 },
+                    children: [
+                        new TextRun({
+                            text: isEnglish ? "Section C Long Answer / Practical Model Answers:" : "विभाग स दीर्घ उत्तरीय / व्यावहारिक मॉडल उत्तर:",
+                            bold: true,
+                            size: 24,
+                            font: "Calibri"
+                        })
+                    ]
+                }),
+                new Paragraph({
+                    indent: { left: 360 },
+                    spacing: { after: 120 },
+                    children: [
+                        new TextRun({
+                            text: isEnglish 
+                                ? "[Teacher Note: Write or grade this section based on the custom question details you manually type after downloading.]" 
+                                : "[शिक्षक टिप्पणी: इस अनुभाग को डाउनलोड करने के बाद मैन्युअल रूप से लिखे जाने वाले कस्टम प्रश्न के आधार पर भरें या मूल्यांकित करें।]",
+                            italics: true,
+                            size: 22,
+                            font: "Calibri",
+                            color: "718096"
+                        })
+                    ]
+                })
+            );
 
         } else {
             // ==========================================
