@@ -147,15 +147,27 @@ function checkButtonState() {
 
 // 2. Handle Uploaded Files
 function handleSelectedFiles(files) {
+    const maxSizeBytes = 20 * 1024 * 1024; // 20MB
     const validFiles = Array.from(files).filter(file => {
         const isImage = file.type.startsWith('image/');
         const isPdf = file.type === 'application/pdf';
         const isDocx = file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        
+        if (!isImage && !isPdf && !isDocx) {
+            addLog(`Skipped: '${file.name}' is not a supported file format.`, 'error');
+            return false;
+        }
+        
+        if (file.size > maxSizeBytes) {
+            addLog(`Skipped: '${file.name}' exceeds the 20MB file size limit (${Math.round(file.size / (1024 * 1024))}MB).`, 'error');
+            return false;
+        }
+        
         return isImage || isPdf || isDocx;
     });
     
     if (validFiles.length === 0) {
-        addLog('No valid files (images, PDFs, or .docx) selected.', 'error');
+        addLog('No valid files under 20MB selected.', 'error');
         return;
     }
 
