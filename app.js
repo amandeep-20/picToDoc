@@ -537,7 +537,8 @@ Instructions:
 4. For MCQs, ensure that:
    - The correct answer matches one of the options.
    - The translation is natural and accurate in both languages.
-5. Return the result in the exact JSON schema provided below.
+5. In the questions and answers, do not include references to chapter numbers or names (e.g., 'From Chapter 1', 'According to Chapter...', 'Acc to chapter...', etc.).
+6. Return the result in the exact JSON schema provided below.
 `;
 
     const responseSchema = {
@@ -1645,12 +1646,11 @@ async function generateAndDownloadDocx(language) {
             const mcqHeadingText = isEnglish ? "Section A: Multiple Choice Questions (MCQs)" : "भाग अ: बहुविकल्पीय प्रश्न (MCQs)";
             const shortHeadingText = isEnglish ? "Section B: Short Answer Questions" : "भाग ब: लघु उत्तरीय प्रश्न";
             const answerLabel = isEnglish ? "Correct Answer" : "सही उत्तर";
-            const modelLabel = isEnglish ? "Generated via Gemini AI model" : "जेमिनी एआई मॉडल द्वारा उत्पन्न";
 
             children.push(
                 new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    spacing: { after: 120 },
+                    spacing: { after: 360 },
                     children: [
                         new TextRun({
                             text: titleText,
@@ -1658,18 +1658,6 @@ async function generateAndDownloadDocx(language) {
                             size: 36, // 18pt
                             font: "Calibri",
                             color: "1A365D"
-                        })
-                    ]
-                }),
-                new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    spacing: { after: 360 },
-                    children: [
-                        new TextRun({
-                            text: `${modelLabel} • ${new Date().toLocaleDateString()}`,
-                            size: 20, // 10pt
-                            font: "Calibri",
-                            color: "718096"
                         })
                     ]
                 })
