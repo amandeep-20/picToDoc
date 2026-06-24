@@ -516,29 +516,23 @@ async function startGenerationFlow() {
             if (isImage && currentMode === 'single') {
                 const base64 = await fileToBase64(file);
                 mediaParts.push({
+                    name: file.name,
                     inlineData: {
                         mimeType: file.type,
                         data: base64
                     }
                 });
                 addLog(`Encoded image: ${file.name} (${Math.round(file.size / 1024)} KB)`, 'info');
-            } else if (isPdf && currentMode === 'single') {
+            } else if (isPdf) {
                 const base64 = await fileToBase64(file);
                 mediaParts.push({
+                    name: file.name,
                     inlineData: {
                         mimeType: 'application/pdf',
                         data: base64
                     }
                 });
-                addLog(`Encoded PDF document: ${file.name} (${Math.round(file.size / 1024)} KB)`, 'info');
-            } else if (isPdf && currentMode === 'fa') {
-                addLog(`Extracting text from PDF document: ${file.name}...`, 'loading');
-                const pdfText = await extractTextFromPdf(file);
-                extractedTexts.push({
-                    name: file.name,
-                    text: pdfText
-                });
-                addLog(`Extracted text from PDF ${file.name} (${pdfText.length} characters)`, 'success');
+                addLog(`Encoded PDF document for native processing: ${file.name} (${Math.round(file.size / 1024)} KB)`, 'info');
             } else if (isExcel && currentMode === 'fa') {
                 addLog(`Extracting text from Excel spreadsheet: ${file.name}...`, 'loading');
                 const excelText = await extractTextFromExcel(file);
@@ -560,7 +554,7 @@ async function startGenerationFlow() {
             }
         }
         
-        if (currentMode === 'fa' && extractedTexts.length === 0) {
+        if (currentMode === 'fa' && extractedTexts.length === 0 && mediaParts.length === 0) {
             throw new Error("No documents successfully parsed. Please upload at least one .docx, .pdf, or Excel question bank document.");
         }
 
@@ -573,7 +567,7 @@ async function startGenerationFlow() {
         if (currentMode === 'single') {
             responseJson = await callGeminiAPI(apiKey, model, mediaParts, extractedTexts);
         } else {
-            responseJson = await callGeminiAPIForFaPaper(apiKey, model, extractedTexts);
+            responseJson = await callGeminiAPIForFaPaper(apiKey, model, mediaParts, extractedTexts);
             
             // Attach examHeader info to save it in local state
             responseJson.examHeader = {
@@ -622,13 +616,25 @@ async function startGenerationFlow() {
     }
 }
 
-async function callGeminiAPIForFaPaper(apiKey, model, extractedTexts) {
+async function callGeminiAPIForFaPaper(apiKey, model, mediaParts, extractedTexts) {
     const mcqCount = parseInt(faMcqCount.value) || 6;
     const shortTotal = parseInt(faShortTotal.value) || 4;
 
+    const parts = [];
+
+    // Add media files (PDFs)
+    mediaParts.forEach((media, idx) => {
+        parts.push({
+            text: `\n\n--- Source Document (PDF) ${idx + 1}: ${media.name} ---`
+        });
+        parts.push({
+            inlineData: media.inlineData
+        });
+    });
+
     let sourceQuestionsText = "";
     extractedTexts.forEach((doc, idx) => {
-        sourceQuestionsText += `\n\n--- Source Document ${idx + 1}: ${doc.name} ---\n${doc.text}\n`;
+        sourceQuestionsText += `\n\n--- Source Document (Word/Excel) ${idx + 1}: ${doc.name} ---\n${doc.text}\n`;
     });
 
     const promptText = `
@@ -649,6 +655,8 @@ Instructions:
 5. In the questions and answers, do not include references to chapter numbers or names (e.g., 'From Chapter 1', 'According to Chapter...', 'Acc to chapter...', etc.).
 6. Return the result in the exact JSON schema provided below.
 `;
+
+    parts.push({ text: promptText });
 
     const responseSchema = {
         type: "OBJECT",
@@ -720,7 +728,7 @@ Instructions:
     };
 
     const requestBody = {
-        contents: [{ parts: [{ text: promptText }] }],
+        contents: [{ parts: parts }],
         generationConfig: {
             responseMimeType: "application/json",
             responseSchema: responseSchema
@@ -834,7 +842,12 @@ async function callGeminiAPI(apiKey, model, mediaParts, extractedTexts) {
         required: ["english", "hindi"]
     };
 
-    const parts = [...mediaParts];
+    const parts = [];
+    mediaParts.forEach(media => {
+        parts.push({
+            inlineData: media.inlineData
+        });
+    });
     
     // Add extracted texts from DOCX files
     extractedTexts.forEach(doc => {
