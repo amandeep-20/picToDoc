@@ -1056,6 +1056,12 @@ textarea:focus {
     color: hsl(215, 85%, 55%);
 }
 
+.excel-bg {
+    background: hsla(142, 70%, 45%, 0.1);
+    border: 1px solid hsla(142, 70%, 45%, 0.3);
+    color: hsl(142, 70%, 40%);
+}
+
 .file-thumbnail-placeholder i {
     width: 28px;
     height: 28px;

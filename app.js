@@ -180,12 +180,12 @@ function switchMode(mode) {
         
         // Update texts
         document.querySelector('.card-upload .card-header h2').textContent = "Source Materials (Images / PDFs / Word)";
-        document.querySelector('.dropzone-subtext').textContent = "Upload study pages, images (JPG/PNG), PDFs, or Word docs (.docx) (Max 20MB per file)";
+        document.querySelector('.dropzone-subtext').textContent = "Upload study pages, images (JPG/PNG), PDFs, or Word docs (.docx) (Max 50MB per file)";
         fileInput.setAttribute('accept', 'image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         generateBtn.querySelector('span').textContent = "Generate Bilingual Documents";
         
         // Update empty state text
-        emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 3-4 images, and click \"Generate Bilingual Documents\" to start the process.";
+        emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 3-4 images/PDFs/Word docs, and click \"Generate Bilingual Documents\" to start the process.";
     } else {
         modeFaBtn.classList.add('active');
         modeSingleBtn.classList.remove('active');
@@ -193,13 +193,13 @@ function switchMode(mode) {
         faSettingsContainer.style.display = 'flex';
         
         // Update texts
-        document.querySelector('.card-upload .card-header h2').textContent = "Source Generated Documents (.docx)";
-        document.querySelector('.dropzone-subtext').textContent = "Upload previously generated question bank Word documents (.docx) (Max 20MB per file)";
-        fileInput.setAttribute('accept', '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        document.querySelector('.card-upload .card-header h2').textContent = "Source Generated Documents (.docx / .pdf / .xlsx / .xls)";
+        document.querySelector('.dropzone-subtext').textContent = "Upload previously generated documents (.docx, .pdf, .xlsx, .xls) (Max 50MB per file)";
+        fileInput.setAttribute('accept', '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel');
         generateBtn.querySelector('span').textContent = "Generate FA Exam Paper";
         
         // Update empty state text
-        emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 4-5 generated .docx files, fill the exam metadata, and click \"Generate FA Exam Paper\" to start.";
+        emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 4-5 generated files (.docx, .pdf, .xlsx, .xls), fill the exam metadata, and click \"Generate FA Exam Paper\" to start.";
     }
 
     // Reset current file list and results state
@@ -223,27 +223,38 @@ function checkButtonState() {
 
 // 2. Handle Uploaded Files
 function handleSelectedFiles(files) {
-    const maxSizeBytes = 20 * 1024 * 1024; // 20MB
+    const maxSizeBytes = 50 * 1024 * 1024; // 50MB
     const validFiles = Array.from(files).filter(file => {
         const isImage = file.type.startsWith('image/');
-        const isPdf = file.type === 'application/pdf';
+        const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
         const isDocx = file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || 
+                        file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+                        file.type === 'application/vnd.ms-excel';
         
-        if (!isImage && !isPdf && !isDocx) {
-            addLog(`Skipped: '${file.name}' is not a supported file format.`, 'error');
+        let isValidType = false;
+        if (currentMode === 'single') {
+            isValidType = isImage || isPdf || isDocx;
+        } else { // 'fa' mode
+            isValidType = isDocx || isPdf || isExcel;
+        }
+        
+        if (!isValidType) {
+            const modeText = currentMode === 'single' ? 'Single mode (Images/PDFs/Word)' : 'FA mode (Word/PDFs/Excel)';
+            addLog(`Skipped: '${file.name}' is not a supported file format in ${modeText}.`, 'error');
             return false;
         }
         
         if (file.size > maxSizeBytes) {
-            addLog(`Skipped: '${file.name}' exceeds the 20MB file size limit (${Math.round(file.size / (1024 * 1024))}MB).`, 'error');
+            addLog(`Skipped: '${file.name}' exceeds the 50MB file size limit (${Math.round(file.size / (1024 * 1024))}MB).`, 'error');
             return false;
         }
         
-        return isImage || isPdf || isDocx;
+        return true;
     });
     
     if (validFiles.length === 0) {
-        addLog('No valid files under 20MB selected.', 'error');
+        addLog('No valid files under 50MB selected.', 'error');
         return;
     }
 
@@ -283,14 +294,29 @@ function createThumbnail(file, src) {
         wrapper.appendChild(img);
     } else {
         const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-        const iconName = isPdf ? 'file-text' : 'file';
-        const bgClass = isPdf ? 'pdf-bg' : 'docx-bg';
+        const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || 
+                        file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+                        file.type === 'application/vnd.ms-excel';
+        
+        let iconName = 'file';
+        let bgClass = 'docx-bg';
+        let extLabel = 'DOCX';
+        
+        if (isPdf) {
+            iconName = 'file-text';
+            bgClass = 'pdf-bg';
+            extLabel = 'PDF';
+        } else if (isExcel) {
+            iconName = 'file-spreadsheet';
+            bgClass = 'excel-bg';
+            extLabel = 'EXCEL';
+        }
         
         const placeholder = document.createElement('div');
         placeholder.className = `file-thumbnail-placeholder ${bgClass}`;
         placeholder.innerHTML = `
             <i data-lucide="${iconName}"></i>
-            <span class="file-ext">${isPdf ? 'PDF' : 'DOCX'}</span>
+            <span class="file-ext">${extLabel}</span>
             <span class="file-name-tooltip">${file.name}</span>
         `;
         wrapper.appendChild(placeholder);
@@ -387,6 +413,70 @@ function extractTextFromDocx(file) {
     });
 }
 
+// Helper to extract plain text from .pdf file using pdf.js
+function extractTextFromPdf(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async function(event) {
+            const arrayBuffer = event.target.result;
+            try {
+                if (typeof pdfjsLib === 'undefined') {
+                    reject(new Error("PDF.js library is not loaded. Cannot parse PDF files. Please check your internet connection."));
+                    return;
+                }
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                const pdf = await loadingTask.promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(" ");
+                    fullText += pageText + "\n";
+                }
+                resolve(fullText);
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = function(err) {
+            reject(err);
+        };
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// Helper to extract plain text from Excel files using SheetJS
+function extractTextFromExcel(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const arrayBuffer = event.target.result;
+            try {
+                if (typeof XLSX === 'undefined') {
+                    reject(new Error("SheetJS (XLSX) library is not loaded. Cannot parse Excel files. Please check your internet connection."));
+                    return;
+                }
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                let fullText = "";
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const csvText = XLSX.utils.sheet_to_csv(worksheet);
+                    fullText += `Sheet: ${sheetName}\n${csvText}\n\n`;
+                });
+                resolve(fullText);
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = function(err) {
+            reject(err);
+        };
+        reader.readAsArrayBuffer(file);
+    });
+}
+
 // 4. Gemini API Call
 // 4. Gemini API Call
 async function startGenerationFlow() {
@@ -417,8 +507,11 @@ async function startGenerationFlow() {
         
         for (let file of uploadedFiles) {
             const isImage = file.type.startsWith('image/');
-            const isPdf = file.type === 'application/pdf';
+            const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
             const isDocx = file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || 
+                            file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+                            file.type === 'application/vnd.ms-excel';
             
             if (isImage && currentMode === 'single') {
                 const base64 = await fileToBase64(file);
@@ -438,6 +531,22 @@ async function startGenerationFlow() {
                     }
                 });
                 addLog(`Encoded PDF document: ${file.name} (${Math.round(file.size / 1024)} KB)`, 'info');
+            } else if (isPdf && currentMode === 'fa') {
+                addLog(`Extracting text from PDF document: ${file.name}...`, 'loading');
+                const pdfText = await extractTextFromPdf(file);
+                extractedTexts.push({
+                    name: file.name,
+                    text: pdfText
+                });
+                addLog(`Extracted text from PDF ${file.name} (${pdfText.length} characters)`, 'success');
+            } else if (isExcel && currentMode === 'fa') {
+                addLog(`Extracting text from Excel spreadsheet: ${file.name}...`, 'loading');
+                const excelText = await extractTextFromExcel(file);
+                extractedTexts.push({
+                    name: file.name,
+                    text: excelText
+                });
+                addLog(`Extracted text from Excel ${file.name} (${excelText.length} characters)`, 'success');
             } else if (isDocx) {
                 addLog(`Extracting text from Word document: ${file.name}...`, 'loading');
                 const docText = await extractTextFromDocx(file);
@@ -445,14 +554,14 @@ async function startGenerationFlow() {
                     name: file.name,
                     text: docText
                 });
-                addLog(`Extracted text from ${file.name} (${docText.length} characters)`, 'success');
-            } else if (currentMode === 'fa') {
-                addLog(`Skipped: '${file.name}' is not supported in FA Paper Builder mode. Only Word documents are supported.`, 'warn');
+                addLog(`Extracted text from Word doc ${file.name} (${docText.length} characters)`, 'success');
+            } else {
+                addLog(`Skipped: '${file.name}' is not supported in the current mode.`, 'warn');
             }
         }
         
         if (currentMode === 'fa' && extractedTexts.length === 0) {
-            throw new Error("No Word documents successfully parsed. Please upload at least one .docx question bank document.");
+            throw new Error("No documents successfully parsed. Please upload at least one .docx, .pdf, or Excel question bank document.");
         }
 
         // Step 2: Form prompt and call Gemini API
@@ -1211,13 +1320,13 @@ function loadSavedData() {
                     faSettingsContainer.style.display = 'flex';
                     
                     // Update texts
-                    document.querySelector('.card-upload .card-header h2').textContent = "Source Generated Documents (.docx)";
-                    document.querySelector('.dropzone-subtext').textContent = "Upload previously generated question bank Word documents (.docx) (Max 20MB per file)";
-                    fileInput.setAttribute('accept', '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+                    document.querySelector('.card-upload .card-header h2').textContent = "Source Generated Documents (.docx / .pdf / .xlsx / .xls)";
+                    document.querySelector('.dropzone-subtext').textContent = "Upload previously generated documents (.docx, .pdf, .xlsx, .xls) (Max 50MB per file)";
+                    fileInput.setAttribute('accept', '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel');
                     generateBtn.querySelector('span').textContent = "Generate FA Exam Paper";
                     
                     // Update empty state text
-                    emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 4-5 generated .docx files, fill the exam metadata, and click \"Generate FA Exam Paper\" to start.";
+                    emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 4-5 generated files (.docx, .pdf, .xlsx, .xls), fill the exam metadata, and click \"Generate FA Exam Paper\" to start.";
                     
                     // Populate inputs
                     const h = generatedData.examHeader;
@@ -1243,12 +1352,12 @@ function loadSavedData() {
                     
                     // Update texts
                     document.querySelector('.card-upload .card-header h2').textContent = "Source Materials (Images / PDFs / Word)";
-                    document.querySelector('.dropzone-subtext').textContent = "Upload study pages, images (JPG/PNG), PDFs, or Word docs (.docx) (Max 20MB per file)";
+                    document.querySelector('.dropzone-subtext').textContent = "Upload study pages, images (JPG/PNG), PDFs, or Word docs (.docx) (Max 50MB per file)";
                     fileInput.setAttribute('accept', 'image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
                     generateBtn.querySelector('span').textContent = "Generate Bilingual Documents";
                     
                     // Update empty state text
-                    emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 3-4 images, and click \"Generate Bilingual Documents\" to start the process.";
+                    emptyState.querySelector('p').textContent = "Enter your Gemini API key, upload 3-4 images/PDFs/Word docs, and click \"Generate Bilingual Documents\" to start the process.";
                 }
 
                 // Show results card, hide emptyState

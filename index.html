@@ -13,6 +13,9 @@
     <!-- Mammoth and Docx.js libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+    <!-- PDF.js and SheetJS (XLSX) libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Configuration and Stylesheet -->
     <script src="config.js"></script>
     <link rel="stylesheet" href="style.css">
@@ -59,7 +62,7 @@
                         <label class="dropzone" id="dropzone" for="fileInput">
                             <i data-lucide="upload-cloud" class="upload-icon"></i>
                             <p class="dropzone-text">Drag & drop your files here or <span class="highlight">browse</span></p>
-                            <p class="dropzone-subtext">Upload study pages, images (JPG/PNG), PDFs, or Word docs (.docx) (Max 20MB per file)</p>
+                            <p class="dropzone-subtext">Upload study pages, images (JPG/PNG), PDFs, or Word docs (.docx) (Max 50MB per file)</p>
                         </label>
                         
                         <div class="uploaded-files-container" id="uploadedFilesContainer" style="display: none;">
